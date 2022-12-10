@@ -31,38 +31,30 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 ///////////////////////////////////////////////////////////////////////////////
+#ifndef PLACER_INCLUDE_TOOLS_VISUALIZER_H_
+#define PLACER_INCLUDE_TOOLS_VISUALIZER_H_
+#include "Circuit.h"
+#include "CImg.h"
+int MARGIN;
+using Image = cimg_library::CImg<unsigned char>;
 
-#ifndef PLACER_INCLUDE_DATASTRUCTURES_DIE_H_
-#define PLACER_INCLUDE_DATASTRUCTURES_DIE_H_
-#include "db.h"
+namespace Color {
+// Pin      - BLACK, Rect
+// Cell     - BLACK, Circle
+// Net      - RED, Line
+const unsigned char BLACK[] = {0, 0, 0};
+const unsigned char DIM_GRAY[] = {105, 105, 105};
+const unsigned char WHITE[] = {255, 255, 255};
+const unsigned char BLUE[] = {0, 0, 255};
+const unsigned char RED[] = {255, 0, 0};
+const unsigned char PINK[] = {255, 51, 255};
+const unsigned char LIGHT_YELLOW[] = {255, 236, 196};
+const unsigned char LIGHT_GREEN[] = {73, 235, 52};
+}  // namespace Color
 
-namespace Placer {
-using namespace odb;
-class Die {
-  /*!
-  * You don't need to understand/see private part & public part(for Constructors and Circuit.init()).
-  * You should understand/know how to use mentioned functions in public part
-  * */
- private:
-  dbBlock *db_block_ = nullptr;
-  Rect die_shape_{};
+void drawDie(Image &circuit, Placer::Die *die);
+void drawCell(Image &circuit, Placer::Instance *instance);
+void drawNet(Image &circuit, Placer::Net *net);
+void drawPad(Image &circuit, Placer::Pin *pin);
 
- public:
-  /// Constructors
-  Die() = default;
-  explicit Die(dbBlock *db_block);
-  /// methods for Circuit.init()
-  void setDbBlock(dbBlock *db_block);
-
-  /*!
-   * You need to know how to use below functions
-   * */
-  uint getWidth();
-  uint getHeight();
-  uint64 getArea();
-
-};
-
-} // Placer
-
-#endif //PLACER_INCLUDE_DATASTRUCTURES_DIE_H_
+#endif //PLACER_INCLUDE_TOOLS_VISUALIZER_H_

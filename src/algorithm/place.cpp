@@ -9,8 +9,8 @@
 
 #include "Circuit.h"
 #include "matrixSolver.h"
-#include <ctime>
-#include <set>
+#define number_of_grid_X 40
+#define number_of_grid_Y 40
 
 namespace Placer {
 void Circuit::quadraticPlacement() {
@@ -22,7 +22,7 @@ void Circuit::quadraticPlacement() {
   coo_matrix A;
 
   // Give ID to instances
-  unordered_map<string, int> instMap;
+  
   int instCnt = 0;
   for (auto &inst : instance_pointers_) {
     instMap.insert(make_pair(inst->getName(), instCnt++));
@@ -149,420 +149,661 @@ template <typename T,typename U>
 std::pair<T,T> operator*(const U &mul, const std::pair<T,T> & r) {   
   return {mul * r.first, mul * r.second};   
 } 
+template <typename T>                                                   
+std::pair<T,T> operator*(const double &mul, const std::pair<T,T> & r) {   
+  return {mul * r.first, mul * r.second};   
+} 
+
+static double fastExp(double a) {
+  a = 1.0 + a / 1024.0;
+  a *= a;
+  a *= a;
+  a *= a;
+  a *= a;
+  a *= a;
+  a *= a;
+  a *= a;
+  a *= a;
+  a *= a;
+  a *= a;
+  return a;
+}
+
+double get_w_x(double x) {
+  return 2.0 * 3.141592 / (double)number_of_grid_X * x + 0.00001;
+}
+
+double Net::getHPWL_WA(double waCoeffX, double waCoeffY) {
+  sumPosX = 0.0;
+  sumNegX = 0.0;
+  sumCPosX = 0.0;
+  sumCNegX = 0.0;
+  sumPosY = 0.0;
+  sumNegY = 0.0;
+  sumCPosY = 0.0;
+  sumCNegY = 0.0;
+
+  vector<Pin*> pins;
+  for (dbITerm* db_i_term: db_net_->getITerms()) {
+    pins.push_back(data_mapping_->pin_map_i[db_i_term]);
+  }
+  for(dbBTerm* db_b_term: db_net_->getBTerms()){
+    pins.push_back(data_mapping_->pin_map_b[db_b_term]);
+  }
+
+  for(auto &pin : this->getConnectedPins()) {
+    pair<int, int> pinCoordinate;
+    if(pin->isInstancePin()) {
+      pair<int, int> instCoordinate = pin->getInstance()->getCoordinate();
+      pinCoordinate = instCoordinate + pin->getCoordinate();
+    }
+    else {
+      pinCoordinate = pin->getCoordinate();
+    }
+    double wPinX = pinCoordinate.first * waCoeffX;
+    double wPinY = pinCoordinate.second * waCoeffY;
+
+    sumCPosX += pinCoordinate.first * fastExp(wPinX);
+    sumCPosY += pinCoordinate.second * fastExp(wPinY);
+    sumCNegX += pinCoordinate.first * fastExp(-wPinX);
+    sumCNegY += pinCoordinate.second * fastExp(-wPinY);
+    sumPosX += fastExp(wPinX);
+    sumPosY += fastExp(wPinY);
+    sumNegX += fastExp(-wPinX);
+    sumNegY += fastExp(-wPinY);
+  }
+  return sumCPosX/sumPosX - sumCNegX/sumNegX + sumCPosY/sumPosY - sumCNegY/sumNegY;
+}
+
+void Net::calcHPWL_gradWA(double waCoeffX, double waCoeffY) {
+  sumPosX = 0.0;
+  sumNegX = 0.0;
+  sumCPosX = 0.0;
+  sumCNegX = 0.0;
+  sumPosY = 0.0;
+  sumNegY = 0.0;
+  sumCPosY = 0.0;
+  sumCNegY = 0.0;
+  
+  for(auto &pin : this->getConnectedPins()) {
+    pair<int, int> pinCoordinate;
+    if(pin->isInstancePin()) {
+      pair<int, int> instCoordinate = pin->getInstance()->getCoordinate();
+      pinCoordinate = instCoordinate + pin->getCoordinate();
+    }
+    else {
+      pinCoordinate = pin->getCoordinate();
+    }
+    double wPinX = pinCoordinate.first * waCoeffX;
+    double wPinY = pinCoordinate.second * waCoeffY;
+
+    sumCPosX += pinCoordinate.first * fastExp(wPinX);
+    sumCPosY += pinCoordinate.second * fastExp(wPinY);
+    sumCNegX += pinCoordinate.first * fastExp(-wPinX);
+    sumCNegY += pinCoordinate.second * fastExp(-wPinY);
+    sumPosX += fastExp(wPinX);
+    sumPosY += fastExp(wPinY);
+    sumNegX += fastExp(-wPinX);
+    sumNegY += fastExp(-wPinY);
+  }
+  // cout << " -- "<< sumPosX << " "<< sumPosY << " "<< sumNegX << " "<< sumNegY << " "<< sumCPosX << " " << sumCPosY << " "<< sumCNegX << " "<< sumCNegY << endl;
+  
+  for(auto &pin : getConnectedPins()) {
+    // if(pin->gradWAX != 0.0 && pin->gradWAY != 0.0) continue;
+    pair<int, int> pinCoordinate;
+    if(pin->isInstancePin()) {
+      pair<int, int> instCoordinate = pin->getInstance()->getCoordinate();
+      pinCoordinate = instCoordinate + pin->getCoordinate();
+    }
+    else {
+      pinCoordinate = pin->getCoordinate();
+    }
+    double wPinX = pinCoordinate.first * waCoeffX;
+    double wPinY = pinCoordinate.second * waCoeffY;
+
+    // cout << wPinX << " wp " << wPinY << endl;
+
+    double ePoxX = fastExp(wPinX);
+    double eNegX = fastExp(-wPinX);
+    double ePoxY = fastExp(wPinY);
+    double eNegY = fastExp(-wPinY);
+
+    pin->gradWAX = ePoxX / sumPosX * (1 + pinCoordinate.first * waCoeffX - sumCPosX/sumPosX * waCoeffX) - eNegX / sumNegX * (1 - pinCoordinate.first * waCoeffX - sumCNegX/sumNegX * waCoeffX);
+    pin->gradWAY = ePoxY / sumPosY * (1 + pinCoordinate.first * waCoeffY - sumCPosY/sumPosY * waCoeffY) - eNegY / sumNegY * (1 - pinCoordinate.first * waCoeffY - sumCNegY/sumNegY * waCoeffY);
+    // cout << "GRAD Pin" << pin->gradWAX << " " << pin->gradWAY <<endl;
+  }
+}
+
+double calcAlphaHat(vector<double> &vX, vector<double> &vY, vector<double> &prev_vX, vector<double> &prev_vY, vector<double> &gradX, vector<double> &gradY, vector<double> &prev_gradX, vector<double> &prev_gradY) {
+  double sum = 0.0;
+  for(int i = 0; i < vX.size(); i++) {
+    double diffX = (vX[i] - prev_vX[i]);
+    double diffY = (vY[i] - prev_vY[i]);
+    sum += diffX * diffX;
+    sum += diffY * diffY;
+  }
+  double normV = sqrt(sum);
+
+  sum = 0.0;
+  for(int i = 0; i < gradX.size(); i++) {
+    double diffX = (gradX[i] - prev_gradX[i]);
+    double diffY = (gradY[i] - prev_gradY[i]);
+    
+    sum += diffX * diffX;
+    sum += diffY * diffY;
+  }
+  double normgradV = sqrt(sum);
+
+  double result = 0.0;
+  if(normgradV != 0.0) result = normV / normgradV;
+  // cout << "Calc Alpha Hat " << result <<endl;
+  return result;
+}
 
 class Bin {
 public:
-  Bin(){}
-  pair<double, double> densityForce[4];
-  double cell_area;
-  double stayForce;
+  pair<double, double> gradDensity = make_pair(0.0, 0.0);
+  double cell_area = 0.0;
+  double density = 0.0;
+
   void reset() {
-    densityForce[0] = make_pair(0.0, 0.0);
-    densityForce[1] = make_pair(0.0, 0.0);
-    densityForce[2] = make_pair(0.0, 0.0);
-    densityForce[3] = make_pair(0.0, 0.0);
-    stayForce = -100.0;
+    gradDensity = make_pair(0.0, 0.0);
     cell_area = 0.0;
+    density = 0.0;
   }
 };
 
-void Circuit::myPlacement() {
-  // Do qplace
-  // this->quadraticPlacement(); 
-  clock_t start, end;
-  start = clock();
-  // Place with solutions
-  long maxWidth = 0, maxHeight = 0;
-  for(Instance *instance : instance_pointers_) {
-    if(maxWidth < instance->getWidth()) {
-      maxWidth = instance->getWidth();
-    }
-    if(maxHeight < instance->getHeight()) {
-      maxHeight = instance->getHeight();
-    }
-  }
+double Circuit::initLambda() {
   uint die_width = die_->getWidth();
   uint die_height = die_->getHeight();
-  // cout << die_width << " " <<  die_height << " " << (long long)die_width * die_height<<endl;
-  // long long cellA = 0;
-  // for (auto &inst : instance_pointers_) {
-  //   cellA += (long long) inst->getArea();
-  // }
-  // cout << cellA << endl;
-  int INITCNT = 3;
+  int normal_bin_width = static_cast<int>(die_width / number_of_grid_X);
+  int normal_bin_height = static_cast<int>(die_height / number_of_grid_Y); 
+
+  double gamma_ = 8.0 * normal_bin_width * pow(10, 1.444);
+  double gamma = 1.0/gamma_;
+
+  vector<vector<Bin> > bins2D(number_of_grid_X, vector<Bin> (number_of_grid_Y));  
+  vector<vector<double> > a(number_of_grid_X, vector<double> (number_of_grid_Y));
+
+  for(auto &net : net_pointers_) {
+    for(auto &pin : net->getConnectedPins()) {
+      pin->gradWAX = 0;
+      pin->gradWAY = 0;
+    }
+  }
+
+  // HPWL WA
+  double HPWL_WA = 0.0;
+  for(auto &net : net_pointers_) {
+    // HPWL_WA += net->getHPWL_WA();
+    net->calcHPWL_gradWA(gamma, gamma);
+  }
+  
+  // Bin & inst update
+  for(auto &inst : instance_pointers_) {
+    int instID = instMap.find(inst->getName())->second;
+    int position_x = inst->getCoordinate().first;
+    int position_y = inst->getCoordinate().second;
+    uint instWidth = inst->getWidth();
+    uint instHeight = inst->getHeight();
+    int bin_coordinate_x = floor(position_x / normal_bin_width);
+    int bin_coordinate_y = floor(position_y / normal_bin_height);
+    inst->binCoordinate = make_pair(bin_coordinate_x, bin_coordinate_y);
+    // cout << position_x << " == " << instWidth << " == " << bin_coordinate_x << " == " <<normal_bin_width<<endl;
+    double _overflowX = (double)position_x + (double)instWidth - (double)bin_coordinate_x * (double)normal_bin_width;
+    double overflowX = (double)_overflowX / (double)instWidth;
+    double _overflowY = (double)position_y + (double)instHeight - (double)bin_coordinate_y * (double)normal_bin_height;
+    double overflowY = (double)_overflowY / (double)instHeight;
+    // cout << overflowX << " and "<< overflowY <<endl;
+    // if(overflowX > 0 || overflowY > 0) {
+    //   cout << overflowX << " and "<< overflowY <<endl;
+    // }
+    if(overflowX > 0) {
+      if(overflowY > 0) {
+        inst->binType = 3;
+        inst->overflowX = overflowX;
+        inst->overflowY = overflowY;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowX) * (1 - overflowY);
+        bins2D[bin_coordinate_x][bin_coordinate_y + 1].cell_area += (double)inst->getArea() * (1 - overflowX) * overflowY;        
+        bins2D[bin_coordinate_x + 1][bin_coordinate_y].cell_area += (double)inst->getArea() * overflowX * (1 - overflowY);          
+        bins2D[bin_coordinate_x + 1][bin_coordinate_y+1].cell_area += (double)inst->getArea() * overflowX * overflowY;     
+      }
+      else {
+        inst->binType = 1;
+        inst->overflowX = overflowX;
+        inst->overflowY = 0.0;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowX);
+        bins2D[bin_coordinate_x + 1][bin_coordinate_y].cell_area += (double)inst->getArea() * overflowX;
+      }
+    }
+    else {
+      if(overflowY > 0) {
+        inst->binType = 2;
+        inst->overflowX = 0.0;
+        inst->overflowY = overflowY;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowY);
+        bins2D[bin_coordinate_x][bin_coordinate_y + 1].cell_area += (double)inst->getArea() * overflowY;          
+      }
+      else {
+        inst->binType = 0;
+        inst->overflowX = 0.0;
+        inst->overflowY = 0.0;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea();
+      }        
+    }
+  }
+
+  // Calc a
+  for (int i = 0; i < number_of_grid_X; i++) {
+    double w_u = get_w_x(i); 
+    for (int j = 0; j < number_of_grid_Y; j++) {
+      long bin_width = normal_bin_width;
+      long bin_height = normal_bin_height;
+      double sum = 0.0;
+      double w_v = get_w_x(j); 
+
+      double density = bins2D[i][j].cell_area / (double)(bin_width * bin_height);
+      bins2D[i][j].density = density;
+      for (int x = 0; x < number_of_grid_X; x++) {
+        for (int y = 0; y < number_of_grid_Y; y++) {
+          sum += density * cos(w_u * x) * cos(w_v * y);
+        }
+      }
+      a[i][j] = 1.0 / number_of_grid_X / number_of_grid_Y * sum;
+    }
+  }
+  double sumWA = 0.0, sumDensity = 0.0;
+
+  for (int x = 0; x < number_of_grid_X; x++) {
+    for (int y = 0; y < number_of_grid_Y; y++) {
+      double sum_x = 0.0;
+      double sum_y = 0.0;
+
+      for (int u = 0; u < number_of_grid_X; u++) {
+        double w_u = get_w_x(u);
+        double w_u_2 = w_u * w_u;
+        for (int v = 0; v < number_of_grid_Y; v++) {
+          double w_v = get_w_x(v); 
+          double w_v_2 = w_v * w_v;
+          double coeff = a[u][v] * w_u / (w_u_2 + w_v_2);
+          double temp_sum_x = coeff * sin(w_u * x) * cos(w_v * y);
+          double temp_sum_y = coeff * cos(w_u * x) * sin(w_v * y);
+          sum_x += temp_sum_x;
+          sum_y += temp_sum_y;
+          // cout << coeff << " co " << sum_x << " " << sum_y <<endl;
+        }
+      }
+      bins2D[x][y].gradDensity = make_pair(sum_x, sum_y);
+    }
+  }
+  for(auto &inst : instance_pointers_) {
+    int instNum = instMap.find(inst->getName())->second;
+
+    double gradInstX = 0.0, gradInstY = 0.0;
+    for(auto &pin : inst->getPins()) {
+      gradInstX += pin->gradWAX;
+      gradInstY += pin->gradWAY;
+    }
+    sumWA += abs(gradInstX);
+    sumWA += abs(gradInstY);
+    pair<double, double> gradDensity = bins2D[inst->binCoordinate.first][inst->binCoordinate.second].gradDensity;
+    sumDensity += abs(inst->getArea() * gradDensity.first);
+    sumDensity += abs(inst->getArea() * gradDensity.second);
+  }
+  // cout << sumWA << " dfdf " <<sumDensity<<endl;
+  return sumWA/sumDensity;
+}
+
+void Circuit::calcGradient(vector<double> &gradX, vector<double> &gradY, double lambda) {
+  // Bin Construction
+  uint die_width = die_->getWidth();
+  uint die_height = die_->getHeight();
+  int normal_bin_width = static_cast<int>(die_width / number_of_grid_X);
+  int normal_bin_height = static_cast<int>(die_height / number_of_grid_Y); 
+  double gamma_ = 8.0 * normal_bin_width * pow(10, 1.444);
+  double gamma = 1.0/gamma_;
+
+  vector<vector<Bin> > bins2D(number_of_grid_X, vector<Bin> (number_of_grid_Y));
+  vector<vector<double> > a(number_of_grid_X, vector<double> (number_of_grid_Y));
+
+  for(auto &net : net_pointers_) {
+    for(auto &pin : net->getConnectedPins()) {
+      pin->gradWAX = 0;
+      pin->gradWAY = 0;
+    }
+  }
+  for(int i = 0; i< gradX.size();i++) {
+    gradX[i] = 0;
+    gradY[i] = 0;
+  }
+  cout << "Start"<<endl;
+  // HPWL WA
+  double HPWL_WA = 0.0;
+  for(auto &net : net_pointers_) {
+    // HPWL_WA += net->getHPWL_WA();
+    net->calcHPWL_gradWA(gamma, gamma);
+  }
+
+  cout << " HPWL GRAD " <<endl;
+  // Bin & inst update
+  for(auto &inst : instance_pointers_) {
+    int instID = instMap.find(inst->getName())->second;
+    int position_x = inst->getCoordinate().first;
+    int position_y = inst->getCoordinate().second;
+    uint instWidth = inst->getWidth();
+    uint instHeight = inst->getHeight();
+    int bin_coordinate_x = floor(position_x / normal_bin_width);
+    int bin_coordinate_y = floor(position_y / normal_bin_height);
+    inst->binCoordinate = make_pair(bin_coordinate_x, bin_coordinate_y);
+    // cout << position_x << " == " << instWidth << " == " << bin_coordinate_x << " == " <<normal_bin_width<<endl;
+    double _overflowX = (double)position_x + (double)instWidth - (double)bin_coordinate_x * (double)normal_bin_width;
+    double overflowX = (double)_overflowX / (double)instWidth;
+    double _overflowY = (double)position_y + (double)instHeight - (double)bin_coordinate_y * (double)normal_bin_height;
+    double overflowY = (double)_overflowY / (double)instHeight;
+    // cout << overflowX << " and "<< overflowY <<endl;
+    // if(overflowX > 0 || overflowY > 0) {
+    //   cout << overflowX << " and "<< overflowY <<endl;
+    // }
+    if(overflowX > 0) {
+      if(overflowY > 0) {
+        inst->binType = 3;
+        inst->overflowX = overflowX;
+        inst->overflowY = overflowY;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowX) * (1 - overflowY);
+        bins2D[bin_coordinate_x][bin_coordinate_y + 1].cell_area += (double)inst->getArea() * (1 - overflowX) * overflowY;        
+        bins2D[bin_coordinate_x + 1][bin_coordinate_y].cell_area += (double)inst->getArea() * overflowX * (1 - overflowY);          
+        bins2D[bin_coordinate_x + 1][bin_coordinate_y+1].cell_area += (double)inst->getArea() * overflowX * overflowY;     
+      }
+      else {
+        inst->binType = 1;
+        inst->overflowX = overflowX;
+        inst->overflowY = 0.0;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowX);
+        bins2D[bin_coordinate_x + 1][bin_coordinate_y].cell_area += (double)inst->getArea() * overflowX;
+      }
+    }
+    else {
+      if(overflowY > 0) {
+        inst->binType = 2;
+        inst->overflowX = 0.0;
+        inst->overflowY = overflowY;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowY);
+        bins2D[bin_coordinate_x][bin_coordinate_y + 1].cell_area += (double)inst->getArea() * overflowY;          
+      }
+      else {
+        inst->binType = 0;
+        inst->overflowX = 0.0;
+        inst->overflowY = 0.0;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea();
+      }        
+    }
+  }
+
+  // Calc a
+  for (int i = 0; i < number_of_grid_X; i++) {
+    double w_u = get_w_x(i); 
+    for (int j = 0; j < number_of_grid_Y; j++) {
+      long bin_width = normal_bin_width;
+      long bin_height = normal_bin_height;
+      double sum = 0.0;
+      double w_v = get_w_x(j); 
+
+      double density = bins2D[i][j].cell_area / (double)(bin_width * bin_height);
+      bins2D[i][j].density = density;
+      for (int x = 0; x < number_of_grid_X; x++) {
+        for (int y = 0; y < number_of_grid_Y; y++) {
+          sum += density * cos(w_u * x) * cos(w_v * y);
+        }
+      }
+      a[i][j] = 1.0 / number_of_grid_X / number_of_grid_Y * sum; 
+    }
+  }
+
+  for (int x = 0; x < number_of_grid_X; x++) {
+    for (int y = 0; y < number_of_grid_Y; y++) {
+      double sum_x = 0.0;
+      double sum_y = 0.0;
+
+      for (int u = 0; u < number_of_grid_X; u++) {
+        double w_u = get_w_x(u);
+        double w_u_2 = w_u * w_u;
+        for (int v = 0; v < number_of_grid_Y; v++) {
+          double w_v = get_w_x(v); 
+          double w_v_2 = w_v * w_v;
+          double coeff = a[u][v] * w_u / (w_u_2 + w_v_2);
+          sum_x += coeff * sin(w_u * x) * cos(w_v * y);
+          sum_y += coeff * cos(w_u * x) * sin(w_v * y);
+        }
+      }
+      bins2D[x][y].gradDensity = make_pair(sum_x, sum_y);
+    }
+  }
+  cout << "Final" << endl;
+  for(auto &inst : instance_pointers_) {
+    int instNum = instMap.find(inst->getName())->second;
+
+    double gradInstX = 0.0, gradInstY = 0.0;
+    for(auto &pin : inst->getPins()) {
+      gradInstX += pin->gradWAX;
+      gradInstY += pin->gradWAY;
+    }
+    pair<double, double> gradDensity = bins2D[inst->binCoordinate.first][inst->binCoordinate.second].gradDensity;
+    gradX[instNum] += gradInstX - lambda * (inst->getArea() * gradDensity.first);
+    gradY[instNum] += gradInstY - lambda * (inst->getArea() * gradDensity.second);
+  }
+}
+
+bool Circuit::densityCheck(ulong normal_bin_width, ulong normal_bin_height) {
+  // Bin & inst update
+  vector<vector<Bin> > bins2D(number_of_grid_X, vector<Bin> (number_of_grid_Y));
+
+  for(auto &inst : instance_pointers_) {
+    int instID = instMap.find(inst->getName())->second;
+    int position_x = inst->getCoordinate().first;
+    int position_y = inst->getCoordinate().second;
+    uint instWidth = inst->getWidth();
+    uint instHeight = inst->getHeight();
+    int bin_coordinate_x = floor(position_x / normal_bin_width);
+    int bin_coordinate_y = floor(position_y / normal_bin_height);
+    inst->binCoordinate = make_pair(bin_coordinate_x, bin_coordinate_y);
+    // cout << position_x << " == " << instWidth << " == " << bin_coordinate_x << " == " <<normal_bin_width<<endl;
+    double _overflowX = (double)position_x + (double)instWidth - (double)bin_coordinate_x * (double)normal_bin_width;
+    double overflowX = (double)_overflowX / (double)instWidth;
+    double _overflowY = (double)position_y + (double)instHeight - (double)bin_coordinate_y * (double)normal_bin_height;
+    double overflowY = (double)_overflowY / (double)instHeight;
+    // cout << overflowX << " and "<< overflowY <<endl;
+    // if(overflowX > 0 || overflowY > 0) {
+    //   cout << overflowX << " and "<< overflowY <<endl;
+    // }
+    if(overflowX > 0) {
+      if(overflowY > 0) {
+        inst->binType = 3;
+        inst->overflowX = overflowX;
+        inst->overflowY = overflowY;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowX) * (1 - overflowY);
+        bins2D[bin_coordinate_x][bin_coordinate_y + 1].cell_area += (double)inst->getArea() * (1 - overflowX) * overflowY;        
+        bins2D[bin_coordinate_x + 1][bin_coordinate_y].cell_area += (double)inst->getArea() * overflowX * (1 - overflowY);          
+        bins2D[bin_coordinate_x + 1][bin_coordinate_y+1].cell_area += (double)inst->getArea() * overflowX * overflowY;     
+      }
+      else {
+        inst->binType = 1;
+        inst->overflowX = overflowX;
+        inst->overflowY = 0.0;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowX);
+        bins2D[bin_coordinate_x + 1][bin_coordinate_y].cell_area += (double)inst->getArea() * overflowX;
+      }
+    }
+    else {
+      if(overflowY > 0) {
+        inst->binType = 2;
+        inst->overflowX = 0.0;
+        inst->overflowY = overflowY;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowY);
+        bins2D[bin_coordinate_x][bin_coordinate_y + 1].cell_area += (double)inst->getArea() * overflowY;          
+      }
+      else {
+        inst->binType = 0;
+        inst->overflowX = 0.0;
+        inst->overflowY = 0.0;
+        bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea();
+      }        
+    }
+  }
+  // Calc a
+  for (int i = 0; i < number_of_grid_X; i++) {
+    for (int j = 0; j < number_of_grid_Y; j++) {
+      double density = bins2D[i][j].cell_area / (double)(normal_bin_width * normal_bin_height);
+      if(density > 1.2) return true;
+    }
+  }
+  return false;
+}
+
+void Circuit::myPlacement() {
+  // Do 
+  clock_t start, end;
+  start = clock();
+  uint die_width = die_->getWidth();
+  uint die_height = die_->getHeight();
+  int normal_bin_width = static_cast<int>(die_width / number_of_grid_X);
+  int normal_bin_height = static_cast<int>(die_height / number_of_grid_Y); 
+  double dieArea = (double)die_width * die_height;
+
   for (auto &inst : instance_pointers_) {
     inst->setCoordinate(int(die_width/2), int(die_height/2));
   }
 
-  for(int i = 0; i< INITCNT; i++) {
-    for (auto &inst : instance_pointers_) {
-      double hpwlForceX = 0.0;
-      double hpwlForceY = 0.0;
-      
-      pair<int, int> instCoordinate = inst->getCoordinate();
-      // For all pins in the instance
-      for(auto &pin : inst->getPins()) {
-        if(pin->getPinName() == "CK") continue;
-        if(pin->getNet()) {
-          Net *net = pin->getNet();
-          // if (net->getSignalType() != "POWER" && net->getSignalType() != "GROUND" && net->getSignalType() != "CLOCK" && net->getSignalType() != "RESET") {
-            int netWeight = net->getWeight();
-            // For all connected pins
-            pair<int, int> pinCoordinate = instCoordinate + pin->getCoordinate();
-            for(auto &connectedPin : net->getConnectedPins()) {
-              // When connected pin is in Instance
-                // When connected pin is in Instance
-                if(connectedPin->isInstancePin() && i>0){
-                  Instance *connInst = connectedPin->getInstance();
-                  pair<int, int> connPinCoordinate = connInst->getCoordinate() + connectedPin->getCoordinate();
-                  hpwlForceX += (double)netWeight * (pinCoordinate.first - connPinCoordinate.first);
-                  hpwlForceY += (double)netWeight * (pinCoordinate.second - connPinCoordinate.second);                
-                }
-                else if(connectedPin->isBlockPin()) {
-                  pair<int, int> connPinCoordinate = connectedPin->getCoordinate();
-                  hpwlForceX += (double)netWeight * (pinCoordinate.first - connPinCoordinate.first);
-                  hpwlForceY += (double)netWeight * (pinCoordinate.second - connPinCoordinate.second);                  
-                }
-            }
-          // }
-        }
-      }
-      inst->hpwlForce = make_pair(hpwlForceX, hpwlForceY);
-    }
-    for (auto &inst : instance_pointers_) {
-      pair<int, int> current = inst->getCoordinate();
-      pair<double, double> hpwlForce = inst->hpwlForce;
-      hpwlForce.first = -hpwlForce.first * 0.000001 * die_width;
-      hpwlForce.second = -hpwlForce.second * 0.000001 * die_height;
-      int newX = current.first + int(hpwlForce.first);
-      if(newX > die_width - inst->getWidth()) newX = die_width - inst->getWidth();
-      int newY = current.second + int(hpwlForce.second);
-      if(newY > die_height - inst->getHeight()) newY = die_height - inst->getHeight();
-      inst->setCoordinate(newX, newY);
-    }
-    ulong HPWL = 0;
-    for (Net *net : net_pointers_) {
-      HPWL += net->getHPWL();
-    }
-
-    cout << "INITIAL HPWL " << HPWL <<endl;
-  }
-
-  // int number_of_grid_X = floor(die_width / maxWidth) - 1;
-  // int number_of_grid_Y = number_of_grid_X;
-  int number_of_grid_X = 40;
-  int number_of_grid_Y = 40;  
-  bool fitWidth = true;
-  bool fitHeight = true;
   cout << number_of_grid_X << " by " << number_of_grid_Y <<endl;
 
-  int normal_bin_width = static_cast<int>(die_width / number_of_grid_X);
-  int normal_bin_height = static_cast<int>(die_height / number_of_grid_Y); 
-  if(die_width % normal_bin_width != 0) {
-    fitWidth = false;
-    number_of_grid_X += 1;
-  }
-  if(die_height % normal_bin_height != 0) {
-    fitHeight = false;
-    number_of_grid_Y += 1;
-  }
   // Give ID to instances
-  unordered_map<string, int> instMap;
   int instCnt = 0;
   for (auto &inst : instance_pointers_) {
     instMap.insert(make_pair(inst->getName(), instCnt++));
   }
-
-  // Bin Construction
-  vector<vector<Bin> > bins2D(number_of_grid_X + 4, vector<Bin> (number_of_grid_Y + 4));
   
   // Iterate until 
   bool condition = true;
-  double coeff = 0.0;
+
   int iter = 0;
-  ulong prevHPWL = 0;
-  double prevDen = 0.0;
+  double alpha_max = 0.044 * normal_bin_width;
+  double lambda_0 = this->initLambda();
+  cout << "Init Lambda "<< lambda_0 << endl;
 
+  double prev_lambda = lambda_0;
+  double mew_0 = 1.1;
+
+  long long prevHPWL = 0, HPWL = 0;
+  prevHPWL = 0;
+  for (Net *net : net_pointers_) {
+    prevHPWL += (long long) net->getHPWL();
+  }
+  HPWL = prevHPWL;
+  double prev_a = 1.0;
+  double prev_alpha = 1.647957e+06;
+  vector<double> prev_uX(instance_pointers_.size());
+  vector<double> prev_uY(instance_pointers_.size());
+  vector<double> prev_vX(instance_pointers_.size());
+  vector<double> prev_vY(instance_pointers_.size());
+
+  vector<double> uX(instance_pointers_.size());
+  vector<double> uY(instance_pointers_.size());
+  vector<double> vX(instance_pointers_.size());
+  vector<double> vY(instance_pointers_.size());
+
+  vector<double> prev_gradX(instance_pointers_.size());
+  vector<double> prev_gradY(instance_pointers_.size());
+  vector<double> gradX(instance_pointers_.size());
+  vector<double> gradY(instance_pointers_.size());
+
+  for(auto &inst : instance_pointers_) {
+    int instNum = instMap.find(inst->getName())->second;
+    pair<int, int> coordinate = inst->getCoordinate();
+    prev_vX[instNum] = coordinate.first;
+    prev_uX[instNum] = coordinate.first;
+    prev_vY[instNum] = coordinate.second;
+    prev_uY[instNum] = coordinate.second;
+  }
+
+  // cout << "start"<<endl;
   while(condition) {
-    //Bin reset
-    for(int i = 0; i <= number_of_grid_X+3; i++) {
-      for (int j = 0; j <= number_of_grid_Y+3; j++) {
-        bins2D[i][j].reset();
-      }
-    }
-    // Bin & inst update
-    for(auto &inst : instance_pointers_) {
-      int instID = instMap.find(inst->getName())->second;
-      int position_x = inst->getCoordinate().first;
-      int position_y = inst->getCoordinate().second;
-      uint instWidth = inst->getWidth();
-      uint instHeight = inst->getHeight();
-      int bin_coordinate_x = floor(position_x / normal_bin_width) + 2;
-      int bin_coordinate_y = floor(position_y / normal_bin_height) + 2;
-      inst->binCoordinate = make_pair(bin_coordinate_x, bin_coordinate_y);
-      // cout << position_x << " == " << instWidth << " == " << bin_coordinate_x << " == " <<normal_bin_width<<endl;
-      double _overflowX = (double)position_x + (double)instWidth - (double)bin_coordinate_x * (double)normal_bin_width;
-      double overflowX = (double)_overflowX / (double)instWidth;
-      double _overflowY = (double)position_y + (double)instHeight - (double)bin_coordinate_y * (double)normal_bin_height;
-      double overflowY = (double)_overflowY / (double)instHeight;
-      // cout << overflowX << " and "<< overflowY <<endl;
-      // if(overflowX > 0 || overflowY > 0) {
-      //   cout << overflowX << " and "<< overflowY <<endl;
-      // }
-      if(overflowX > 0) {
-        if(overflowY > 0) {
-          inst->binType = 3;
-          bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowX) * (1 - overflowY);
-          bins2D[bin_coordinate_x][bin_coordinate_y + 1].cell_area += (double)inst->getArea() * (1 - overflowX) * overflowY;        
-          bins2D[bin_coordinate_x + 1][bin_coordinate_y].cell_area += (double)inst->getArea() * overflowX * (1 - overflowY);          
-          bins2D[bin_coordinate_x + 1][bin_coordinate_y+1].cell_area += (double)inst->getArea() * overflowX * overflowY;     
-        }
-        else {
-          inst->binType = 1;
-          bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowX);
-          bins2D[bin_coordinate_x + 1][bin_coordinate_y].cell_area += (double)inst->getArea() * overflowX;
-        }
-      }
-      else {
-        if(overflowY > 0) {
-          inst->binType = 2;
-          bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea() * (1 - overflowY);
-          bins2D[bin_coordinate_x][bin_coordinate_y + 1].cell_area += (double)inst->getArea() * overflowY;          
-        }
-        else {
-          inst->binType = 0;
-          bins2D[bin_coordinate_x][bin_coordinate_y].cell_area += (double)inst->getArea();
-        }        
-      }
-    }
-
-    // cout << "Cell area" <<endl;
-    // Stay Force. Stay Force < 0 : have to move
-    for (int i = 2; i <= number_of_grid_X+1; i++) {
-      for (int j = 2; j <= number_of_grid_Y+1; j++) {
-        long bin_width = normal_bin_width;
-        if(!fitWidth && i == number_of_grid_X) {
-          bin_width = die_width - bin_width * (number_of_grid_X - 1);
-        }      
-        long bin_height = normal_bin_height;
-        if(!fitHeight && j == number_of_grid_Y) {
-          bin_height = die_height - bin_height * (number_of_grid_Y - 1);
-        }
-        bins2D[i][j].stayForce = 1.0 - bins2D[i][j].cell_area / (double)(bin_width * bin_height);
-      }
-    }
-
-    int left = number_of_grid_X/2 + 1;
-    int down = number_of_grid_Y/2 + 1;
-    int mini = 0, minj = 0;
-
-    double minstayForce = 1.0, sumNegstay = 0.0, fd = 0.0, fl = 0.0;
-    
-    for (int i = 2; i <= number_of_grid_X+1; i++) {
-      for (int j = 2 ; j <= number_of_grid_Y+1; j++) {
-        if(minstayForce > bins2D[i][j].stayForce) {
-          mini = i;
-          minj = j;
-          minstayForce = bins2D[i][j].stayForce;
-        }
-        if(bins2D[i][j].stayForce < 0) {
-          sumNegstay += bins2D[i][j].stayForce;
-          // if(i < left) {
-          //   fl += bins2D[i][j].stayForce;
-          // }
-          // else if(i > number_of_grid_X - left) {
-          //   fl -= bins2D[i][j].stayForce;
-          // }
-          // if(j < down) {
-          //   fd += bins2D[i][j].stayForce;
-          // }
-          // else if(j>number_of_grid_Y - down){
-          //   fd -= bins2D[i][j].stayForce;
-          // }
-        }
-        if(iter % 10 == 0) cout << bins2D[i][j].stayForce << " ";
-        // cout << bins2D[i][j].stayForce << " ";
-      }
-      if(iter % 10 == 0) cout << endl;
-      // cout << endl;
-    }
-    if(minstayForce > 0) condition = false;
-    //Global
-    double globalForceX = 0.0, globalForceY = 0.0;
-    double globalThreshold = 0.1;
-    // globalForceX = (mini < left) ? 1.5 : -1.5;
-    // globalForceY = (minj < down) ? 1.5 : -1.5;
-    if(fl < sumNegstay * globalThreshold) globalForceX = 1.5;
-    else if(fl > -sumNegstay * globalThreshold) globalForceX = -1.5;
-    if(fd < sumNegstay * globalThreshold) globalForceY = 1.5;
-    else if(fd > -sumNegstay * globalThreshold) globalForceY = -1.5;
-
-    // Move Force
-    for(auto &inst : instance_pointers_) {
-      int bin_coordinate_x = inst->binCoordinate.first;
-      int bin_coordinate_y = inst->binCoordinate.second;
-      int binType = inst->binType;
-
-      if(bins2D[bin_coordinate_x][bin_coordinate_y].densityForce[binType].first != 0 && bins2D[bin_coordinate_x][bin_coordinate_y].densityForce[binType].second != 0) {
-        inst->densityForce = bins2D[bin_coordinate_x][bin_coordinate_y].densityForce[binType];
-        continue;
-      }
-
-      double densityForceX = 0;
-      double densityForceY = 0;
-
-      if(binType == 0) {
-        densityForceX -= bins2D[bin_coordinate_x - 1][bin_coordinate_y - 1].stayForce;
-        densityForceX -= bins2D[bin_coordinate_x - 1][bin_coordinate_y].stayForce;
-        densityForceX -= bins2D[bin_coordinate_x - 1][bin_coordinate_y + 1].stayForce;
-        densityForceX += bins2D[bin_coordinate_x + 1][bin_coordinate_y - 1].stayForce;
-        densityForceX += bins2D[bin_coordinate_x + 1][bin_coordinate_y].stayForce;
-        densityForceX += bins2D[bin_coordinate_x + 1][bin_coordinate_y + 1].stayForce;
-        densityForceY -= bins2D[bin_coordinate_x - 1][bin_coordinate_y - 1].stayForce;
-        densityForceY -= bins2D[bin_coordinate_x][bin_coordinate_y - 1].stayForce;
-        densityForceY -= bins2D[bin_coordinate_x + 1][bin_coordinate_y - 1].stayForce;
-        densityForceY += bins2D[bin_coordinate_x - 1][bin_coordinate_y + 1].stayForce;
-        densityForceY += bins2D[bin_coordinate_x][bin_coordinate_y + 1].stayForce;
-        densityForceY += bins2D[bin_coordinate_x + 1][bin_coordinate_y + 1].stayForce;
-      }
-      else if(binType == 1) {
-        densityForceX -= bins2D[bin_coordinate_x][bin_coordinate_y - 1].stayForce;
-        densityForceX -= bins2D[bin_coordinate_x][bin_coordinate_y].stayForce;
-        densityForceX -= bins2D[bin_coordinate_x][bin_coordinate_y + 1].stayForce;
-        densityForceX += bins2D[bin_coordinate_x + 1][bin_coordinate_y - 1].stayForce;
-        densityForceX += bins2D[bin_coordinate_x + 1][bin_coordinate_y].stayForce;
-        densityForceX += bins2D[bin_coordinate_x + 1][bin_coordinate_y + 1].stayForce;
-        densityForceY -= bins2D[bin_coordinate_x][bin_coordinate_y - 1].stayForce;
-        densityForceY -= bins2D[bin_coordinate_x + 1][bin_coordinate_y - 1].stayForce;
-        densityForceY += bins2D[bin_coordinate_x][bin_coordinate_y + 1].stayForce;
-        densityForceY += bins2D[bin_coordinate_x + 1][bin_coordinate_y + 1].stayForce;
-      }
-      else if(binType == 2) {
-        densityForceX -= bins2D[bin_coordinate_x][bin_coordinate_y].stayForce;
-        densityForceX -= bins2D[bin_coordinate_x][bin_coordinate_y + 1].stayForce;
-        densityForceX += bins2D[bin_coordinate_x + 1][bin_coordinate_y].stayForce;
-        densityForceX += bins2D[bin_coordinate_x + 1][bin_coordinate_y + 1].stayForce;
-        densityForceY -= bins2D[bin_coordinate_x - 1][bin_coordinate_y].stayForce;
-        densityForceY -= bins2D[bin_coordinate_x][bin_coordinate_y].stayForce;
-        densityForceY -= bins2D[bin_coordinate_x + 1][bin_coordinate_y].stayForce;
-        densityForceY += bins2D[bin_coordinate_x - 1][bin_coordinate_y + 1].stayForce;
-        densityForceY += bins2D[bin_coordinate_x][bin_coordinate_y + 1].stayForce;
-        densityForceY += bins2D[bin_coordinate_x + 1][bin_coordinate_y + 1].stayForce;
-      }
-      else {
-        densityForceX -= bins2D[bin_coordinate_x][bin_coordinate_y].stayForce;
-        densityForceX += bins2D[bin_coordinate_x + 1][bin_coordinate_y].stayForce;
-        densityForceY -= bins2D[bin_coordinate_x][bin_coordinate_y].stayForce;
-        densityForceY += bins2D[bin_coordinate_x][bin_coordinate_y + 1].stayForce;
-      }
-      inst->densityForce = make_pair(densityForceX, densityForceY);
-      bins2D[bin_coordinate_x][bin_coordinate_y].densityForce[binType] = make_pair(densityForceX, densityForceY);
-    }
-
-    // cout << "Spreading"<<endl;
-    for(auto &inst : instance_pointers_) {
-      int bin_coordinate_x = inst->binCoordinate.first;
-      int bin_coordinate_y = inst->binCoordinate.second;
-      if(bins2D[bin_coordinate_x][bin_coordinate_y].stayForce < 0) {
-        pair<int, int> binCoord = make_pair(-bin_coordinate_x * normal_bin_width + inst->getWidth()/2, -bin_coordinate_y * normal_bin_height  + inst->getHeight()/2 );
-        pair<int, int> inbinCoord = inst->getCoordinate() + binCoord;
-        double outerCoeff = 0.5 * maxClamp((-1) * bins2D[bin_coordinate_x][bin_coordinate_y].stayForce, 1.0);
-
-        double dx = inst->densityForce.first;
-        double dy = inst->densityForce.second;
-        double adx = abs(dx);
-        double ady = abs(dy);
-        double ratio0 = 1 / max(adx, ady);
-        ratio0 = ratio0 * (1.29289 - (adx + ady) * ratio0 * 0.29289);
-        inst->densityForce = make_pair(outerCoeff * dx * ratio0, outerCoeff * dy * ratio0);
-
-        double fx = (double)(inbinCoord.first - normal_bin_width/2);
-        if(fx < 0 && bins2D[bin_coordinate_x-1][bin_coordinate_y].stayForce <0) fx = minClamp(fx, -0.1);  
-        if(fx > 0 && bins2D[bin_coordinate_x+1][bin_coordinate_y].stayForce <0) fx = maxClamp(fx, 0.1);
-        double fy = (double)(inbinCoord.second - normal_bin_height/2);
-        if(fy < 0 && bins2D[bin_coordinate_x][bin_coordinate_y-1].stayForce <0) fy = minClamp(fy, -0.1);  
-        if(fy > 0 && bins2D[bin_coordinate_x][bin_coordinate_y+1].stayForce <0) fy = maxClamp(fy, 0.1);
-        double ax = abs(fx);
-        double ay = abs(fy);
-        double ratio = 1 / max(ax, ay);
-        ratio = ratio * (1.29289 - (ax + ay) * ratio * 0.29289);
-        inst->spreadForce = make_pair(outerCoeff * fx * ratio, outerCoeff * fy * ratio);
-      }
-      else {
-        inst->spreadForce = make_pair(0.0, 0.0);
-      }
-    }
-    // cout << "Density Fin"<<endl;
-    // HPWL Force
-    for(auto &inst : instance_pointers_) {
-      double hpwlForceX = 0.0;
-      double hpwlForceY = 0.0;
-      
-      pair<int, int> instCoordinate = inst->getCoordinate();
-      // For all pins in the instance
-      for(auto &pin : inst->getPins()) {
-        if(pin->getPinName() == "CK") continue;
-        if(pin->getNet()) {
-          Net *net = pin->getNet();
-          if (net->getSignalType() != "POWER" && net->getSignalType() != "GROUND" && net->getSignalType() != "CLOCK" && net->getSignalType() != "RESET") {
-            double netWeight = (double)net->getWeight()/net->getConnectedPins().size();
-            // For all connected pins
-            pair<int, int> pinCoordinate = instCoordinate + pin->getCoordinate();
-            for(auto &connectedPin : net->getConnectedPins()) {
-              // When connected pin is in Instance
-              if(connectedPin->isInstancePin()){
-                Instance *connInst = connectedPin->getInstance();
-                if(bins2D[inst->binCoordinate.first][inst->binCoordinate.second].stayForce < 0 && (connInst->binCoordinate.first == inst->binCoordinate.first && connInst->binCoordinate.second == inst->binCoordinate.second)) continue;
-                pair<int, int> connPinCoordinate = connInst->getCoordinate() + connectedPin->getCoordinate();
-                hpwlForceX += netWeight * (pinCoordinate.first - connPinCoordinate.first);
-                hpwlForceY += netWeight * (pinCoordinate.second - connPinCoordinate.second);                
-              }
-              else if(connectedPin->isBlockPin()) {
-                pair<int, int> connPinCoordinate = connectedPin->getCoordinate();
-                hpwlForceX += netWeight * (pinCoordinate.first - connPinCoordinate.first);
-                hpwlForceY += netWeight * (pinCoordinate.second - connPinCoordinate.second);                  
-              }
-            }
-          }
-        }
-      }
-      inst->hpwlForce = make_pair(hpwlForceX, hpwlForceY);
-    }
-    
-    for (auto &inst : instance_pointers_) {
-      pair<double, double> hpwlForce = inst->hpwlForce;
-      inst->hpwlForce = make_pair(hpwlForce.first/maxhpwlForceX, hpwlForce.second/maxhpwlForceY);
-    }
-    // cout << "HPWL Fin"<<endl;
-
     // Update coeff
-    ulong HPWL = 0;
-    for (Net *net : net_pointers_) {
-      HPWL += net->getHPWL();
+    double mew = 1.1;
+    double diff_ = 1.0 - (double)(HPWL - prevHPWL)/3.5e5;
+    cout << HPWL << " " << prevHPWL<< " " << diff_<< endl;
+    if(diff_ <= -3.1) mew = 0.75;
+    else if(diff_ >= 1) mew = 1.1;
+    else {
+      mew = clamp(pow(mew_0, diff_), 0.75, 1.1);
     }
+    double lambda = mew * prev_lambda;
+    cout << lambda << " lambda " <<prev_lambda << endl;
     
-    double lambda = (prevDen < sumNegstay) ? 0.01 : 0.03;
-    double sfcoeff = 1.0;
-    prevDen = sumNegstay;
     prevHPWL = HPWL;
+    prev_lambda = lambda;
 
-    for (auto &inst : instance_pointers_) {
-      pair<int, int> current = inst->getCoordinate();
-      // cout << densityForce.first << ", "<<densityForce.second << " \t ";
-      // if(inst->binCoordinate.first == mini && inst->binCoordinate.second == minj) cout << " SF "<< sfcoeff *inst->spreadForce.first << ", "<< sfcoeff *inst->spreadForce.second << " HPWL " << -lambda * inst->hpwlForce.first << ", " << -lambda * inst->hpwlForce.second << " GF " << globalForceX << ", " << globalForceY <<endl;
-      pair<double, double> force = sfcoeff * inst->spreadForce + (-lambda) * inst->hpwlForce;
-      force = force + make_pair(globalForceX, globalForceY);
+    calcGradient(gradX, gradY, lambda);
+    cout << "ended "<<endl;
 
-      int newX = clamp(current.first + normal_bin_width * int(force.first), 0, (int)(die_width - inst->getWidth()));
-      int newY = clamp(current.second + normal_bin_height * int(force.second), 0, (int)(die_height - inst->getHeight()));
-      inst->setCoordinate(newX, newY);
+
+    // Back Tracking
+    double sum = 0.0;
+    double alpha_hat = calcAlphaHat(vX, vY, prev_vX, prev_vY, gradX, gradY, prev_gradX, prev_gradY);
+    
+    double epsilon = 0.95;
+    double next_ak = 0.0;
+    vector<double> vX_hat(instance_pointers_.size()), vY_hat(instance_pointers_.size());
+
+    while(alpha_hat > epsilon * next_ak) {
+      double alpha_k_max = max(alpha_max, 2 * prev_alpha);
+      if(next_ak > alpha_k_max || next_ak < 0.01 * alpha_k_max) {
+        next_ak = clamp(next_ak, 0.01*alpha_k_max, alpha_k_max);
+        break;
+      }
+      for(int i = 0; i < vX_hat.size(); i++) {
+        vX_hat[i] = vX[i] + (-alpha_hat) * gradX[i];
+        vY_hat[i] = vY[i] + (-alpha_hat) * gradY[i];
+      }
+      placeMap(vX_hat, vY_hat);
+
+      vector<double> next_gradX(instance_pointers_.size());
+      vector<double> next_gradY(instance_pointers_.size());
+      calcGradient(next_gradX, next_gradY, lambda);
+
+      next_ak = calcAlphaHat(vX_hat, vY_hat, vX, vY, next_gradX, next_gradY, gradX, gradY);
     }
+    cout<<"Next a_k " << next_ak<<endl;
+    // Nestrov
+    for(int i = 0; i < uX.size(); i++) {
+      uX[i] = prev_vX[i] + (-alpha_hat) * gradX[i];
+      uY[i] = prev_vY[i] + (-alpha_hat) * gradY[i];
+    } 
+    double next_a = (1 + sqrt(4 * prev_a * prev_a + 1)) / 2.0;
+    for(int i = 0; i < vX.size(); i++) {
+      vX[i] = uX[i] + (prev_a - 1) * (uX[i] - prev_uX[i]) / next_a;
+      vY[i] = uY[i] + (prev_a - 1) * (uY[i] - prev_uY[i]) / next_a;
+    } 
+    placeMap(vX, vY);
+
+    prev_a = next_a;
+    prev_uX = uX;
+    prev_uY = uY;
+    prev_vX = vX;
+    prev_vY = vY;
+    prev_gradX = gradX;
+    prev_gradY = gradY;
+    prev_alpha = alpha_hat;
+
     end = clock();
     double tresult = (double)(end-start)/CLOCKS_PER_SEC;
     tresult = (double) (end-start)/CLOCKS_PER_SEC;
-    cout << "iter " << iter++ << " HPWL : " << HPWL << " min : " << minstayForce << " sum : " << sumNegstay << "\tTIME : " << tresult << endl;
+    // Update coeff
+    HPWL = 0;
+    for (Net *net : net_pointers_) {
+      HPWL += (long long) net->getHPWL();
+    }
+    condition = densityCheck(normal_bin_width, normal_bin_height);
 
-    // cout<< "Moved"<<endl;
+    cout << "iter " << iter++ << " HPWL : " << HPWL << "\tTIME : " << tresult << endl;
   }
 }
 }

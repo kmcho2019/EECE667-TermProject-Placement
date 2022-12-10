@@ -97,7 +97,7 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
   // x = A^{-1} b with CG
   // https://en.wikipedia.org/wiki/Conjugate_gradient#Example_code_in_Matlab
 
-  int maxit = 100000;
+  int maxit = 10000;
   valarray<double> Ax(n);
   valarray<double> Ap(n);
   valarray<double> r(n);

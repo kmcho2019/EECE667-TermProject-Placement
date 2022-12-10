@@ -32,37 +32,34 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef PLACER_INCLUDE_DATASTRUCTURES_DIE_H_
-#define PLACER_INCLUDE_DATASTRUCTURES_DIE_H_
-#include "db.h"
-
+#ifndef PLACER_INCLUDE_CIRCUIT_EVALUATOR_H_
+#define PLACER_INCLUDE_CIRCUIT_EVALUATOR_H_
+#include "Circuit.h"
 namespace Placer {
-using namespace odb;
-class Die {
-  /*!
-  * You don't need to understand/see private part & public part(for Constructors and Circuit.init()).
-  * You should understand/know how to use mentioned functions in public part
-  * */
+class Evaluator : public Circuit {
  private:
-  dbBlock *db_block_ = nullptr;
-  Rect die_shape_{};
+  Evaluator *compared_circuit_ = nullptr;
+  bool cellNumCheck(int);
+  bool netNumCheck(int);
+  bool pinNumCheck(int);
+  bool padNumCheck(int);
+
+  int getCellNumber();
+  int getNetNumber();
+  int getPinNumber();
+  int getPadNumber();
+
+  bool isAllCellInDie();
+  bool placeCheck();
+  pair<int, int> getBinNumbers();
+  bool densityCheck();
 
  public:
-  /// Constructors
-  Die() = default;
-  explicit Die(dbBlock *db_block);
-  /// methods for Circuit.init()
-  void setDbBlock(dbBlock *db_block);
-
-  /*!
-   * You need to know how to use below functions
-   * */
-  uint getWidth();
-  uint getHeight();
-  uint64 getArea();
+  // for evaluation
+  bool placeLegalityCheck(Evaluator *compared_circuit);
+  bool evaluate(Evaluator *compared_circuit);
+  vector<int> getVariableNumbers();  // vector<int> {cell #, net #, pin #, pad #}
 
 };
-
-} // Placer
-
-#endif //PLACER_INCLUDE_DATASTRUCTURES_DIE_H_
+}
+#endif //PLACER_INCLUDE_CIRCUIT_EVALUATOR_H_

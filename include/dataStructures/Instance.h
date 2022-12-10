@@ -91,13 +91,14 @@ class Instance {
 
   /// get area of the instance(cell)
   uint getArea();
+
   pair<int, int> binCoordinate;
   uint binType;
+  double overflowX, overflowY;
   pair<double, double> spreadForce;
   pair<double, double> densityForce;
   pair<double, double> hpwlForce; 
   pair<double, double> globalForce; 
-
 
   std::vector<Pin *> getPins();
 

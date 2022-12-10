@@ -35,6 +35,10 @@
 #include "Net.h"
 
 namespace Placer {
+template <typename T,typename U>                                                   
+std::pair<T,U> operator+(const std::pair<T,U> & l,const std::pair<T,U> & r) {   
+  return {l.first+r.first,l.second+r.second};                                    
+} 
 
 Net::Net(odb::dbNet *db_net) {
   db_database_ = db_net->getDb();
@@ -109,4 +113,5 @@ ulong Net::getHPWL() {
 
   return net_box.dx() + net_box.dy();
 }
+
 } // Placer

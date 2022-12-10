@@ -36,6 +36,7 @@
 #define PLACER_INCLUDE_DATASTRUCTURES_CIRCUIT_H_
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 #include "Parser.h"
 #include "Instance.h"
 #include "Net.h"
@@ -46,7 +47,7 @@ namespace Placer {
 using namespace odb;
 
 class Circuit {
- private:
+ protected:
   Parser parser_;
   data_storage data_storage_;
   data_mapping data_mapping_;
@@ -58,21 +59,6 @@ class Circuit {
   Die *die_ = nullptr;
   void init();
 
-  // for evaluation
-  Circuit *compared_circuit_ = nullptr;
-  bool cellNumCheck(int);
-  bool netNumCheck(int);
-  bool pinNumCheck(int);
-  bool padNumCheck(int);
-
-  int getCellNumber();
-  int getNetNumber();
-  int getPinNumber();
-  int getPadNumber();
-
-  bool placeCheck();
-  bool densityCheck();
-
  public:
   Circuit() = default;
   ~Circuit() = default;
@@ -80,7 +66,9 @@ class Circuit {
   void write(const string &out_file_name);
   void quadraticPlacement();
   void myPlacement();
+  void calcGradient(std::vector<double> &gradX, std::vector<double> &gradY);
 
+  /// \brief
   /// get unit of micro
   /// \details
   /// the coordinate in this circuit is `return value`/1um.
@@ -89,17 +77,30 @@ class Circuit {
   /// (20000, 30000) means coordinate (200um, 300um)
   int getUnitOfMicro() const;
 
+  /// \brief
+  /// saveImg the circuit image.
+  /// \details
+  /// It saves the picture for the cells, pads, and nets in the circuit,
+  /// in the output/images/file_name.png
+  void saveImg(const string& file_name);
+
+  /// \brief
+  /// return the HPWL of the total circuit
+  ulong getHPWL();
+
+  /// \brief
+  /// Analyze the bench metrics and print them
+  void analyzeBench();
+
   // etc
+  unordered_map<string, int> instMap;
   void howToUse();
   void placeExample();
   void dbTutorial() const;
-
-  // for evaluation
-  ulong getHPWL();
-  bool evaluate(Circuit *compared_circuit);
-  bool evaluateIncludeDensity(Circuit *compared_circuit);
-  vector<int> getVariableNumbers();  // vector<int> {cell #, net #, pin #, pad #}
-
+  void calcGradient(vector<double> &gradX, vector<double> &gradY, double lambda);
+  void placeMap(vector<double> &vX, vector<double> &vY);
+  bool densityCheck(ulong normal_bin_width, ulong normal_bin_height);
+  double initLambda();
 
 };
 

@@ -36,7 +36,7 @@
 #include "Circuit.h"
 
 using namespace std;
-void callUsage(){
+void callUsage() {
   cout << "Usage:" << endl;
   cout << "\t./placer <benchNumber>" << endl;
   cout << "Ex)" << endl;
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     ss << argv[1];
     ss >> benchNumber;
   }
-  string lefName = "test" + benchNumber  + ".input.lef";
+  string lefName = "test" + benchNumber + ".input.lef";
   string defName = "test" + benchNumber + ".input.def";
   string test_path_name = "../test/competition/";
   string output_path_name = "../output/placer/";
@@ -64,10 +64,16 @@ int main(int argc, char **argv) {
   // Parsing and initialize start
   Placer::Circuit circuit;
   circuit.parse(test_path_name + lefName, test_path_name + defName);
+  circuit.analyzeBench();
 
   // Your own placement
   circuit.myPlacement();
+
+  // save image
+  string img_file_name = "result" + benchNumber;
+  circuit.saveImg(img_file_name);
   circuit.write(output_path_name + defName);
 
   cout << "Def is written successfully." << endl;
 }
+
