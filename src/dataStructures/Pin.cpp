@@ -94,8 +94,8 @@ pair<int, int> Pin::getCoordinate() {
       if (bPin->getBoxes().size() > 1)
         assert(1);  // if this case occurs, please contact to me :(
       for (auto box : bPin->getBoxes()) {
-        x = (box->xMin() + (int) box->getDX());
-        y = (box->yMin() + (int) box->getDY());
+        x = (box->xMin() + (int) box->getDX() /2);
+        y = (box->yMin() + (int) box->getDY() /2);
       }
     }
   }

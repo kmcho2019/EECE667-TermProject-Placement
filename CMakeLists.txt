@@ -13,6 +13,7 @@ set(SOURCES
         src/dataStructures/Pin.cpp
 
         src/algorithm/place.cpp
+        src/algorithm/FFT_calculator.cpp
         src/algorithm/math/matrixSolver.cpp
 
         src/tools/visualizer.cpp

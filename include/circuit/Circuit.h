@@ -42,9 +42,24 @@
 #include "Net.h"
 #include "Pin.h"
 #include "Die.h"
+#define number_of_grid_X 40
+#define number_of_grid_Y 40
+
 
 namespace Placer {
 using namespace odb;
+class Bin {
+public:
+  pair<double, double> gradDensity = make_pair(0.0, 0.0);
+  double cell_area = 0.0;
+  double density = 0.0;
+
+  void reset() {
+    gradDensity = make_pair(0.0, 0.0);
+    cell_area = 0.0;
+    density = 0.0;
+  }
+};
 
 class Circuit {
  protected:
@@ -93,13 +108,18 @@ class Circuit {
   void analyzeBench();
 
   // etc
+  uint64 total_cell_area = 0;
   unordered_map<string, int> instMap;
+  vector<double> w_u(number_of_grid_X);
+  vector<double> w_u_2(number_of_grid_X);
+
   void howToUse();
   void placeExample();
   void dbTutorial() const;
+  void initialPlacement();
   void calcGradient(vector<double> &gradX, vector<double> &gradY, double lambda);
   void placeMap(vector<double> &vX, vector<double> &vY);
-  bool densityCheck(ulong normal_bin_width, ulong normal_bin_height);
+  bool densityCheck(double normal_bin_width, double normal_bin_height);
   double initLambda();
 
 };

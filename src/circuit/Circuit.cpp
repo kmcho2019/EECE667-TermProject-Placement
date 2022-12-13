@@ -160,7 +160,7 @@ void Circuit::analyzeBench() {
   cout << "Instance #: " << instance_pointers_.size() << endl;
   cout << "Net #: " << net_pointers_.size() << endl;
   cout << "IO pad #: " << pad_pointers_.size() << endl;
-  uint64 total_cell_area = 0;
+  total_cell_area = 0;
   uint64 die_area = die_->getArea();
   for (auto instance: instance_pointers_) {
     total_cell_area += instance->getArea();
@@ -176,29 +176,10 @@ void Circuit::placeMap(vector<double> &vX, vector<double> &vY) {
   uint die_height = die_->getHeight();
   for (auto &inst : instance_pointers_) {
     int instID = instMap.find(inst->getName())->second;
-    int newX = clamp(int(vX[instID]), 0, (int)(die_width - inst->getWidth()));
-    int newY = clamp(int(vY[instID]), 0, (int)(die_height - inst->getHeight()));
+    int newX = clamp(int(vX[instID]), 0, (int)die_width - (int)inst->getWidth());
+    int newY = clamp(int(vY[instID]), 0, (int)die_height - (int)inst->getHeight());
     inst->setCoordinate(newX, newY);
   }
 }
 
 } // Placer
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
