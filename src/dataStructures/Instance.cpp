@@ -54,6 +54,8 @@ dbInst *Instance::getDbInst() const {
 }
 std::vector<Pin *> Instance::getPins() {
   std::vector<Pin *> pins;
+
+  if(isFiller) return pins;
   for (dbITerm *db_i_term : db_inst_->getITerms()) {
     Pin *pin = data_mapping_->pin_map_i[db_i_term];
     pins.push_back(pin);
@@ -82,8 +84,10 @@ uint Instance::getArea() {
 void Instance::setCoordinate(int x, int y) {
   position_.first = x;
   position_.second = y;
-  db_inst_->setPlacementStatus(odb::dbPlacementStatus::PLACED);
-  db_inst_->setLocation(x, y);
+  if(!isFiller) {
+    db_inst_->setPlacementStatus(odb::dbPlacementStatus::PLACED);
+    db_inst_->setLocation(x, y);
+  }
 }
 bool Instance::isPlaced() {
   if (db_inst_->getPlacementStatus() == odb::dbPlacementStatus::PLACED) {
@@ -97,15 +101,20 @@ bool Instance::isPlaced() {
   }
 }
 uint Instance::getWidth() {
-  return db_inst_->getMaster()->getWidth();
+  if(!isFiller) return db_inst_->getMaster()->getWidth();
+  else return fillerWidth;
 }
 uint Instance::getHeight() {
-  return db_inst_->getMaster()->getHeight();
+  if(!isFiller) return db_inst_->getMaster()->getHeight();
+  else return fillerHeight;
 }
 pair<int, int> Instance::getCoordinate() {
-  int x = 0, y = 0;
-  db_inst_->getLocation(x, y);
-  return pair<int, int>{x, y};
+  if(!isFiller) {
+    int x = 0, y = 0;
+    db_inst_->getLocation(x, y);
+    return pair<int, int>{x, y};
+  }
+  else return fillerCoordinate;
 }
 
 } // Placer

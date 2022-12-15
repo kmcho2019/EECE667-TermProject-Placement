@@ -37,27 +37,32 @@
 #include <vector>
 #include <unordered_map>
 #include <algorithm>
+#include <random>
 #include "Parser.h"
 #include "Instance.h"
 #include "Net.h"
 #include "Pin.h"
 #include "Die.h"
-#define number_of_grid_X 40
-#define number_of_grid_Y 40
 
 
 namespace Placer {
 using namespace odb;
 class Bin {
 public:
-  pair<double, double> gradDensity = make_pair(0.0, 0.0);
-  double cell_area = 0.0;
-  double density = 0.0;
-
+  float size_x, size_y;
+  pair<float, float> LL, UR;
+  float stdArea = 0.0;
+  float density = 0.0;  // means ρ_DCT in eq (22)
+  float electricPotential = 0.0;  // means phi_DCT in eq (23)
+  float electricField_x = 0.0;  // means ξ_x_DSCT in eq (24)
+  float electricField_y = 0.0;
+  
   void reset() {
-    gradDensity = make_pair(0.0, 0.0);
-    cell_area = 0.0;
-    density = 0.0;
+    stdArea = 0.0;
+    density = 0.0;  // means ρ_DCT in eq (22)
+    electricPotential = 0.0;  // means phi_DCT in eq (23)
+    electricField_x = 0.0;  // means ξ_x_DSCT in eq (24)
+    electricField_y = 0.0;
   }
 };
 
@@ -81,7 +86,7 @@ class Circuit {
   void write(const string &out_file_name);
   void quadraticPlacement();
   void myPlacement();
-  void calcGradient(std::vector<double> &gradX, std::vector<double> &gradY);
+  void calcGradient(std::vector<float> &gradX, std::vector<float> &gradY);
 
   /// \brief
   /// get unit of micro
@@ -109,19 +114,77 @@ class Circuit {
 
   // etc
   uint64 total_cell_area = 0;
+  int cntFC = 0;
+  float areaFC = 0.0f, totalAreaFC = 0.0f;
   unordered_map<string, int> instMap;
-  vector<double> w_u(number_of_grid_X);
-  vector<double> w_u_2(number_of_grid_X);
+  vector<float> wx;
+  vector<float> wx_sq;
+  vector<float> wy;
+  vector<float> wy_sq;
+  vector<float> cosTable;
+  vector<int> workArea_;
 
   void howToUse();
   void placeExample();
   void dbTutorial() const;
   void initialPlacement();
-  void calcGradient(vector<double> &gradX, vector<double> &gradY, double lambda);
-  void placeMap(vector<double> &vX, vector<double> &vY);
-  bool densityCheck(double normal_bin_width, double normal_bin_height);
-  double initLambda();
+  void calcGradient(vector<float> &gradX, vector<float> &gradY, float lambda);
+  void placeMap(vector<float> &vX, vector<float> &vY);
+  bool densityCheck(float normal_bin_width, float normal_bin_height);
+  float initLambda();
 
+  // FOR FFT
+  void cdft(int n, int isgn, float *a, int *ip, float *w);
+  void rdft(int n, int isgn, float *a, int *ip, float *w);
+  void ddct(int n, int isgn, float *a, int *ip, float *w);
+  void ddst(int n, int isgn, float *a, int *ip, float *w);
+  void dfct(int n, float *a, float *t, int *ip, float *w);
+  void dfst(int n, float *a, float *t, int *ip, float *w);
+
+  void makewt(int nw, int *ip, float *w);
+  void makeipt(int nw, int *ip);
+  void makect(int nc, int *ip, float *c);
+
+  void cftfsub(int n, float *a, int *ip, int nw, float *w);
+  void cftbsub(int n, float *a, int *ip, int nw, float *w);
+  void bitrv2(int n, int *ip, float *a);
+  void bitrv2conj(int n, int *ip, float *a);
+  void bitrv216(float *a);
+  void bitrv216neg(float *a);
+  void bitrv208(float *a);
+  void bitrv208neg(float *a);
+  void cftf1st(int n, float *a, float *w);
+  void cftb1st(int n, float *a, float *w);
+
+  void cftrec4(int n, float *a, int nw, float *w);
+  int cfttree(int n, int j, int k, float *a, int nw, float *w);
+  void cftleaf(int n, int isplt, float *a, int nw, float *w);
+  void cftmdl1(int n, float *a, float *w);
+  void cftmdl2(int n, float *a, float *w);
+  void cftfx41(int n, float *a, int nw, float *w);
+  void cftf161(float *a, float *w);
+  void cftf162(float *a, float *w);
+  void cftf081(float *a, float *w);
+  void cftf082(float *a, float *w);
+  void cftf040(float *a);
+  void cftb040(float *a);
+  void cftx020(float *a);
+  void rftfsub(int n, float *a, int nc, float *c);
+  void rftbsub(int n, float *a, int nc, float *c);
+  void dctsub(int n, float *a, int nc, float *c);
+  void dstsub(int n, float *a, int nc, float *c);
+
+  // 2D fftsg
+  void cdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w);
+  void rdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w);
+  void rdft2dsort(int n1, int n2, int isgn, float **a);
+  void ddcst2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w);
+  void ddsct2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w);
+  void ddct2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w);
+  void ddst2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w);
+  void cdft2d_sub(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w);
+  void rdft2d_sub(int n1, int isgn, float **a);
+  void ddxt2d_sub(int n1, int n2, int ics, int isgn, float **a, float *t, int *ip, float *w);
 };
 
 } // Placer

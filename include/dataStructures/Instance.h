@@ -52,15 +52,12 @@ class Instance {
   odb::dbInst *db_inst_ = nullptr;
   data_storage *data_storage_ = nullptr;
   data_mapping *data_mapping_ = nullptr;
-
-  string name_;
-  string libName_;
-
   /// This is lower left position of instance
   /// This is same with the origin of db_inst_ pointer
   pair<int, int> position_ = pair<int, int>{0, 0};
  public:
-
+  string name_;
+  string libName_;
   /// Constructors
   Instance() = default;
   explicit Instance(odb::dbInst *db_inst);
@@ -92,13 +89,18 @@ class Instance {
   /// get area of the instance(cell)
   uint getArea();
 
+  bool isFiller = false;
+  pair<int, int> fillerCoordinate;
+  float fillerWidth = 0.0f;
+  float fillerHeight = 0.0f;
+
   pair<int, int> binCoordinate;
   uint binType;
-  double overflowX, overflowY;
-  pair<double, double> spreadForce;
-  pair<double, double> densityForce;
-  pair<double, double> hpwlForce; 
-  pair<double, double> globalForce; 
+  float overflowX, overflowY;
+  pair<float, float> spreadForce;
+  pair<float, float> densityForce;
+  pair<float, float> hpwlForce; 
+  pair<float, float> globalForce; 
 
   std::vector<Pin *> getPins();
 

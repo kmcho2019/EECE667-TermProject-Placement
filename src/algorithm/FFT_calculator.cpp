@@ -315,10 +315,10 @@ Appendix :
 */
 
 #include <cmath>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
-#include "FFT_calculator.h"
+#include "Circuit.h"
 #define fft2d_alloc_error_check(p)                        \
   {                                                       \
     if((p) == NULL) {                                     \
@@ -329,7 +329,7 @@ Appendix :
 
 namespace Placer {
 
-void FFT_calculator::cdft(int n, int isgn, float *a, int *ip, float *w) {
+void Circuit::cdft(int n, int isgn, float *a, int *ip, float *w) {
   int nw;
 
   nw = ip[0];
@@ -344,7 +344,7 @@ void FFT_calculator::cdft(int n, int isgn, float *a, int *ip, float *w) {
   }
 }
 
-void FFT_calculator::rdft(int n, int isgn, float *a, int *ip, float *w) {
+void Circuit::rdft(int n, int isgn, float *a, int *ip, float *w) {
   int nw, nc;
   float xi;
 
@@ -380,7 +380,7 @@ void FFT_calculator::rdft(int n, int isgn, float *a, int *ip, float *w) {
   }
 }
 
-void FFT_calculator::ddct(int n, int isgn, float *a, int *ip, float *w) {
+void Circuit::ddct(int n, int isgn, float *a, int *ip, float *w) {
   int j, nw, nc;
   float xr;
 
@@ -428,7 +428,7 @@ void FFT_calculator::ddct(int n, int isgn, float *a, int *ip, float *w) {
   }
 }
 
-void FFT_calculator::ddst(int n, int isgn, float *a, int *ip, float *w) {
+void Circuit::ddst(int n, int isgn, float *a, int *ip, float *w) {
   int j, nw, nc;
   float xr;
 
@@ -475,7 +475,7 @@ void FFT_calculator::ddst(int n, int isgn, float *a, int *ip, float *w) {
   }
 }
 
-void FFT_calculator::dfct(int n, float *a, float *t, int *ip, float *w) {
+void Circuit::dfct(int n, float *a, float *t, int *ip, float *w) {
   int j, k, l, m, mh, nw, nc;
   float xr, xi, yr, yi;
 
@@ -561,7 +561,7 @@ void FFT_calculator::dfct(int n, float *a, float *t, int *ip, float *w) {
   }
 }
 
-void FFT_calculator::dfst(int n, float *a, float *t, int *ip, float *w) {
+void Circuit::dfst(int n, float *a, float *t, int *ip, float *w) {
   int j, k, l, m, mh, nw, nc;
   float xr, xi, yr, yi;
 
@@ -641,7 +641,7 @@ void FFT_calculator::dfst(int n, float *a, float *t, int *ip, float *w) {
 /* -------- initializing routines -------- */
 
 
-void FFT_calculator::makewt(int nw, int *ip, float *w) {
+void Circuit::makewt(int nw, int *ip, float *w) {
   int j, nwh, nw0, nw1;
   float delta, wn4r, wk1r, wk1i, wk3r, wk3i;
 
@@ -699,7 +699,7 @@ void FFT_calculator::makewt(int nw, int *ip, float *w) {
   }
 }
 
-void FFT_calculator::makeipt(int nw, int *ip) {
+void Circuit::makeipt(int nw, int *ip) {
   int j, l, m, m2, p, q;
 
   ip[2] = 0;
@@ -717,7 +717,7 @@ void FFT_calculator::makeipt(int nw, int *ip) {
   }
 }
 
-void FFT_calculator::makect(int nc, int *ip, float *c) {
+void Circuit::makect(int nc, int *ip, float *c) {
   int j, nch;
   float delta;
 
@@ -793,7 +793,7 @@ void FFT_calculator::makect(int nc, int *ip, float *c) {
   }
 #endif /* USE_CDFT_WINTHREADS */
 
-void FFT_calculator::cftfsub(int n, float *a, int *ip, int nw, float *w) {
+void Circuit::cftfsub(int n, float *a, int *ip, int nw, float *w) {
 #ifdef USE_CDFT_THREADS
   void cftrec4_th(int n, float *a, int nw, float *w);
 #endif /* USE_CDFT_THREADS */
@@ -829,7 +829,7 @@ void FFT_calculator::cftfsub(int n, float *a, int *ip, int nw, float *w) {
   }
 }
 
-void FFT_calculator::cftbsub(int n, float *a, int *ip, int nw, float *w) {
+void Circuit::cftbsub(int n, float *a, int *ip, int nw, float *w) {
 #ifdef USE_CDFT_THREADS
   void cftrec4_th(int n, float *a, int nw, float *w);
 #endif /* USE_CDFT_THREADS */
@@ -865,7 +865,7 @@ void FFT_calculator::cftbsub(int n, float *a, int *ip, int nw, float *w) {
   }
 }
 
-void FFT_calculator::bitrv2(int n, int *ip, float *a) {
+void Circuit::bitrv2(int n, int *ip, float *a) {
   int j, j1, k, k1, l, m, nh, nm;
   float xr, xi, yr, yi;
 
@@ -1210,7 +1210,7 @@ void FFT_calculator::bitrv2(int n, int *ip, float *a) {
   }
 }
 
-void FFT_calculator::bitrv2conj(int n, int *ip, float *a) {
+void Circuit::bitrv2conj(int n, int *ip, float *a) {
   int j, j1, k, k1, l, m, nh, nm;
   float xr, xi, yr, yi;
 
@@ -1563,7 +1563,7 @@ void FFT_calculator::bitrv2conj(int n, int *ip, float *a) {
   }
 }
 
-void FFT_calculator::bitrv216(float *a) {
+void Circuit::bitrv216(float *a) {
   float x1r, x1i, x2r, x2i, x3r, x3i, x4r, x4i, x5r, x5i, x7r, x7i, x8r, x8i,
       x10r, x10i, x11r, x11i, x12r, x12i, x13r, x13i, x14r, x14i;
 
@@ -1617,7 +1617,7 @@ void FFT_calculator::bitrv216(float *a) {
   a[29] = x7i;
 }
 
-void FFT_calculator::bitrv216neg(float *a) {
+void Circuit::bitrv216neg(float *a) {
   float x1r, x1i, x2r, x2i, x3r, x3i, x4r, x4i, x5r, x5i, x6r, x6i, x7r, x7i,
       x8r, x8i, x9r, x9i, x10r, x10i, x11r, x11i, x12r, x12i, x13r, x13i, x14r,
       x14i, x15r, x15i;
@@ -1684,7 +1684,7 @@ void FFT_calculator::bitrv216neg(float *a) {
   a[31] = x8i;
 }
 
-void FFT_calculator::bitrv208(float *a) {
+void Circuit::bitrv208(float *a) {
   float x1r, x1i, x3r, x3i, x4r, x4i, x6r, x6i;
 
   x1r = a[2];
@@ -1705,7 +1705,7 @@ void FFT_calculator::bitrv208(float *a) {
   a[13] = x3i;
 }
 
-void FFT_calculator::bitrv208neg(float *a) {
+void Circuit::bitrv208neg(float *a) {
   float x1r, x1i, x2r, x2i, x3r, x3i, x4r, x4i, x5r, x5i, x6r, x6i, x7r, x7i;
 
   x1r = a[2];
@@ -1738,7 +1738,7 @@ void FFT_calculator::bitrv208neg(float *a) {
   a[15] = x4i;
 }
 
-void FFT_calculator::cftf1st(int n, float *a, float *w) {
+void Circuit::cftf1st(int n, float *a, float *w) {
   int j, j0, j1, j2, j3, k, m, mh;
   float wn4r, csc1, csc3, wk1r, wk1i, wk3r, wk3i, wd1r, wd1i, wd3r, wd3i;
   float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i, y0r, y0i, y1r, y1i, y2r, y2i,
@@ -1941,7 +1941,7 @@ void FFT_calculator::cftf1st(int n, float *a, float *w) {
   a[j3 + 3] = wk3i * x0i - wk3r * x0r;
 }
 
-void FFT_calculator::cftb1st(int n, float *a, float *w) {
+void Circuit::cftb1st(int n, float *a, float *w) {
   int j, j0, j1, j2, j3, k, m, mh;
   float wn4r, csc1, csc3, wk1r, wk1i, wk3r, wk3i, wd1r, wd1i, wd3r, wd3i;
   float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i, y0r, y0i, y1r, y1i, y2r, y2i,
@@ -2244,7 +2244,7 @@ void *cftrec2_th(void *p) {
 }
 #endif /* USE_CDFT_THREADS */
 
-void FFT_calculator::cftrec4(int n, float *a, int nw, float *w) {
+void Circuit::cftrec4(int n, float *a, int nw, float *w) {
   int isplt, j, k, m;
 
   m = n;
@@ -2261,7 +2261,7 @@ void FFT_calculator::cftrec4(int n, float *a, int nw, float *w) {
   }
 }
 
-int FFT_calculator::cfttree(int n, int j, int k, float *a, int nw, float *w) {
+int Circuit::cfttree(int n, int j, int k, float *a, int nw, float *w) {
   int i, isplt, m;
 
   if ((k & 3) != 0) {
@@ -2292,7 +2292,7 @@ int FFT_calculator::cfttree(int n, int j, int k, float *a, int nw, float *w) {
   return isplt;
 }
 
-void FFT_calculator::cftleaf(int n, int isplt, float *a, int nw, float *w) {
+void Circuit::cftleaf(int n, int isplt, float *a, int nw, float *w) {
   if (n == 512) {
     cftmdl1(128, a, &w[nw - 64]);
     cftf161(a, &w[nw - 8]);
@@ -2348,7 +2348,7 @@ void FFT_calculator::cftleaf(int n, int isplt, float *a, int nw, float *w) {
   }
 }
 
-void FFT_calculator::cftmdl1(int n, float *a, float *w) {
+void Circuit::cftmdl1(int n, float *a, float *w) {
   int j, j0, j1, j2, j3, k, m, mh;
   float wn4r, wk1r, wk1i, wk3r, wk3i;
   float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
@@ -2456,7 +2456,7 @@ void FFT_calculator::cftmdl1(int n, float *a, float *w) {
   a[j3 + 1] = -wn4r * (x0i - x0r);
 }
 
-void FFT_calculator::cftmdl2(int n, float *a, float *w) {
+void Circuit::cftmdl2(int n, float *a, float *w) {
   int j, j0, j1, j2, j3, k, kr, m, mh;
   float wn4r, wk1r, wk1i, wk3r, wk3i, wd1r, wd1i, wd3r, wd3i;
   float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i, y0r, y0i, y2r, y2i;
@@ -2588,7 +2588,7 @@ void FFT_calculator::cftmdl2(int n, float *a, float *w) {
   a[j3 + 1] = y0i + y2i;
 }
 
-void FFT_calculator::cftfx41(int n, float *a, int nw, float *w) {
+void Circuit::cftfx41(int n, float *a, int nw, float *w) {
   if (n == 128) {
     cftf161(a, &w[nw - 8]);
     cftf162(&a[32], &w[nw - 32]);
@@ -2602,7 +2602,7 @@ void FFT_calculator::cftfx41(int n, float *a, int nw, float *w) {
   }
 }
 
-void FFT_calculator::cftf161(float *a, float *w) {
+void Circuit::cftf161(float *a, float *w) {
   float wn4r, wk1r, wk1i, x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i, y0r, y0i, y1r,
       y1i, y2r, y2i, y3r, y3i, y4r, y4i, y5r, y5i, y6r, y6i, y7r, y7i, y8r, y8i,
       y9r, y9i, y10r, y10i, y11r, y11i, y12r, y12i, y13r, y13i, y14r, y14i,
@@ -2757,7 +2757,7 @@ void FFT_calculator::cftf161(float *a, float *w) {
   a[7] = x1i - x3r;
 }
 
-void FFT_calculator::cftf162(float *a, float *w) {
+void Circuit::cftf162(float *a, float *w) {
   float wn4r, wk1r, wk1i, wk2r, wk2i, wk3r, wk3i, x0r, x0i, x1r, x1i, x2r, x2i,
       y0r, y0i, y1r, y1i, y2r, y2i, y3r, y3i, y4r, y4i, y5r, y5i, y6r, y6i, y7r,
       y7i, y8r, y8i, y9r, y9i, y10r, y10i, y11r, y11i, y12r, y12i, y13r, y13i,
@@ -2936,7 +2936,7 @@ void FFT_calculator::cftf162(float *a, float *w) {
   a[31] = x1i - x2r;
 }
 
-void FFT_calculator::cftf081(float *a, float *w) {
+void Circuit::cftf081(float *a, float *w) {
   float wn4r, x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i, y0r, y0i, y1r, y1i, y2r,
       y2i, y3r, y3i, y4r, y4i, y5r, y5i, y6r, y6i, y7r, y7i;
 
@@ -2995,7 +2995,7 @@ void FFT_calculator::cftf081(float *a, float *w) {
   a[7] = y2i - y6r;
 }
 
-void FFT_calculator::cftf082(float *a, float *w) {
+void Circuit::cftf082(float *a, float *w) {
   float wn4r, wk1r, wk1i, x0r, x0i, x1r, x1i, y0r, y0i, y1r, y1i, y2r, y2i, y3r,
       y3i, y4r, y4i, y5r, y5i, y6r, y6i, y7r, y7i;
 
@@ -3064,7 +3064,7 @@ void FFT_calculator::cftf082(float *a, float *w) {
   a[15] = x0i - x1r;
 }
 
-void FFT_calculator::cftf040(float *a) {
+void Circuit::cftf040(float *a) {
   float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
 
   x0r = a[0] + a[4];
@@ -3085,7 +3085,7 @@ void FFT_calculator::cftf040(float *a) {
   a[7] = x1i - x3r;
 }
 
-void FFT_calculator::cftb040(float *a) {
+void Circuit::cftb040(float *a) {
   float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
 
   x0r = a[0] + a[4];
@@ -3106,7 +3106,7 @@ void FFT_calculator::cftb040(float *a) {
   a[7] = x1i + x3r;
 }
 
-void FFT_calculator::cftx020(float *a) {
+void Circuit::cftx020(float *a) {
   float x0r, x0i;
 
   x0r = a[0] - a[2];
@@ -3117,7 +3117,7 @@ void FFT_calculator::cftx020(float *a) {
   a[3] = x0i;
 }
 
-void FFT_calculator::rftfsub(int n, float *a, int nc, float *c) {
+void Circuit::rftfsub(int n, float *a, int nc, float *c) {
   int j, k, kk, ks, m;
   float wkr, wki, xr, xi, yr, yi;
 
@@ -3140,7 +3140,7 @@ void FFT_calculator::rftfsub(int n, float *a, int nc, float *c) {
   }
 }
 
-void FFT_calculator::rftbsub(int n, float *a, int nc, float *c) {
+void Circuit::rftbsub(int n, float *a, int nc, float *c) {
   int j, k, kk, ks, m;
   float wkr, wki, xr, xi, yr, yi;
 
@@ -3163,7 +3163,7 @@ void FFT_calculator::rftbsub(int n, float *a, int nc, float *c) {
   }
 }
 
-void FFT_calculator::dctsub(int n, float *a, int nc, float *c) {
+void Circuit::dctsub(int n, float *a, int nc, float *c) {
   int j, k, kk, ks, m;
   float wkr, wki, xr;
 
@@ -3182,7 +3182,7 @@ void FFT_calculator::dctsub(int n, float *a, int nc, float *c) {
   a[m] *= c[0];
 }
 
-void FFT_calculator::dstsub(int n, float *a, int nc, float *c) {
+void Circuit::dstsub(int n, float *a, int nc, float *c) {
   int j, k, kk, ks, m;
   float wkr, wki, xr;
 
@@ -3623,7 +3623,7 @@ macro definitions
   }
 #endif /* USE_FFT2D_WINTHREADS */
 
-void FFT_calculator::cdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
+void Circuit::cdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
 #ifdef USE_FFT2D_THREADS
   void xdft2d0_subth(int n1, int n2, int icr, int isgn, float **a, int *ip,
                      float *w);
@@ -3652,34 +3652,17 @@ void FFT_calculator::cdft2d(int n1, int n2, int isgn, float **a, float *t, int *
     } else if (n2 < 4 * nthread) {
       nt >>= 2;
     }
-    t = (float *) malloc(sizeof(float) * nt);
+    t = new float[nt];
     fft2d_alloc_error_check(t);
-  }
-#ifdef USE_FFT2D_THREADS
-  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
-    xdft2d0_subth(n1, n2, 0, isgn, a, ip, w);
-    cdft2d_subth(n1, n2, isgn, a, t, ip, w);
-  }
-  else
-#endif /* USE_FFT2D_THREADS */
-  {
     for (i = 0; i < n1; i++) {
       cdft(n2, isgn, a[i], ip, w);
     }
     cdft2d_sub(n1, n2, isgn, a, t, ip, w);
-  }
-  if (itnull != 0) {
-    free(t);
+    delete[] t;
   }
 }
 
-void FFT_calculator::rdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
-#ifdef USE_FFT2D_THREADS
-  void xdft2d0_subth(int n1, int n2, int icr, int isgn, float **a, int *ip,
-                     float *w);
-  void cdft2d_subth(int n1, int n2, int isgn, float **a, float *t, int *ip,
-                    float *w);
-#endif /* USE_FFT2D_THREADS */
+void Circuit::rdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
   int n, nw, nc, itnull, nthread, nt, i;
 
   n = n1 << 1;
@@ -3709,24 +3692,8 @@ void FFT_calculator::rdft2d(int n1, int n2, int isgn, float **a, float *t, int *
     } else if (n2 < 4 * nthread) {
       nt >>= 2;
     }
-    t = (float *) malloc(sizeof(float) * nt);
+    t = new float[nt];
     fft2d_alloc_error_check(t);
-  }
-#ifdef USE_FFT2D_THREADS
-  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
-    if(isgn < 0) {
-      rdft2d_sub(n1, isgn, a);
-      cdft2d_subth(n1, n2, isgn, a, t, ip, w);
-    }
-    xdft2d0_subth(n1, n2, 1, isgn, a, ip, w);
-    if(isgn >= 0) {
-      cdft2d_subth(n1, n2, isgn, a, t, ip, w);
-      rdft2d_sub(n1, isgn, a);
-    }
-  }
-  else
-#endif /* USE_FFT2D_THREADS */
-  {
     if (isgn < 0) {
       rdft2d_sub(n1, isgn, a);
       cdft2d_sub(n1, n2, isgn, a, t, ip, w);
@@ -3738,13 +3705,11 @@ void FFT_calculator::rdft2d(int n1, int n2, int isgn, float **a, float *t, int *
       cdft2d_sub(n1, n2, isgn, a, t, ip, w);
       rdft2d_sub(n1, isgn, a);
     }
-  }
-  if (itnull != 0) {
-    free(t);
+    delete[] t;
   }
 }
 
-void FFT_calculator::rdft2dsort(int n1, int n2, int isgn, float **a) {
+void Circuit::rdft2dsort(int n1, int n2, int isgn, float **a) {
   int n1h, i;
   float x, y;
 
@@ -3776,7 +3741,7 @@ void FFT_calculator::rdft2dsort(int n1, int n2, int isgn, float **a) {
   }
 }
 
-void FFT_calculator::ddcst2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
+void Circuit::ddcst2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
 #ifdef USE_FFT2D_THREADS
   void ddxt2d0_subth(int n1, int n2, int ics, int isgn, float **a, int *ip,
                      float *w);
@@ -3812,28 +3777,17 @@ void FFT_calculator::ddcst2d(int n1, int n2, int isgn, float **a, float *t, int 
     } else if (n2 < 2 * nthread) {
       nt >>= 2;
     }
-    t = (float *) malloc(sizeof(float) * nt);
+    t = new float[nt];
     fft2d_alloc_error_check(t);
-  }
-#ifdef USE_FFT2D_THREADS
-  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
-    ddxt2d0_subth(n1, n2, 1, isgn, a, ip, w);
-    ddxt2d_subth(n1, n2, 0, isgn, a, t, ip, w);
-  }
-  else
-#endif /* USE_FFT2D_THREADS */
-  {
     for (i = 0; i < n1; i++) {
       ddst(n2, isgn, a[i], ip, w);
     }
     ddxt2d_sub(n1, n2, 0, isgn, a, t, ip, w);
-  }
-  if (itnull != 0) {
-    free(t);
+    delete[] t;
   }
 }
 
-void FFT_calculator::ddsct2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
+void Circuit::ddsct2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
 #ifdef USE_FFT2D_THREADS
   void ddxt2d0_subth(int n1, int n2, int ics, int isgn, float **a, int *ip,
                      float *w);
@@ -3869,28 +3823,17 @@ void FFT_calculator::ddsct2d(int n1, int n2, int isgn, float **a, float *t, int 
     } else if (n2 < 2 * nthread) {
       nt >>= 2;
     }
-    t = (float *) malloc(sizeof(float) * nt);
+    t = new float[nt];
     fft2d_alloc_error_check(t);
-  }
-#ifdef USE_FFT2D_THREADS
-  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
-    ddxt2d0_subth(n1, n2, 0, isgn, a, ip, w);
-    ddxt2d_subth(n1, n2, 1, isgn, a, t, ip, w);
-  }
-  else
-#endif /* USE_FFT2D_THREADS */
-  {
     for (i = 0; i < n1; i++) {
       ddct(n2, isgn, a[i], ip, w);
     }
     ddxt2d_sub(n1, n2, 1, isgn, a, t, ip, w);
-  }
-  if (itnull != 0) {
-    free(t);
+    delete[] t;
   }
 }
 
-void FFT_calculator::ddct2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
+void Circuit::ddct2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
 #ifdef USE_FFT2D_THREADS
   void ddxt2d0_subth(int n1, int n2, int ics, int isgn, float **a, int *ip,
                      float *w);
@@ -3917,37 +3860,23 @@ void FFT_calculator::ddct2d(int n1, int n2, int isgn, float **a, float *t, int *
   if (t == NULL) {
     itnull = 1;
     nthread = 1;
-#ifdef USE_FFT2D_THREADS
-    nthread = FFT2D_MAX_THREADS;
-#endif /* USE_FFT2D_THREADS */
     nt = 4 * nthread * n1;
     if (n2 == 2 * nthread) {
       nt >>= 1;
     } else if (n2 < 2 * nthread) {
       nt >>= 2;
     }
-    t = (float *) malloc(sizeof(float) * nt);
+    t = new float[nt];
     fft2d_alloc_error_check(t);
-  }
-#ifdef USE_FFT2D_THREADS
-  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
-    ddxt2d0_subth(n1, n2, 0, isgn, a, ip, w);
-    ddxt2d_subth(n1, n2, 0, isgn, a, t, ip, w);
-  }
-  else
-#endif /* USE_FFT2D_THREADS */
-  {
     for (i = 0; i < n1; i++) {
       ddct(n2, isgn, a[i], ip, w);
     }
     ddxt2d_sub(n1, n2, 0, isgn, a, t, ip, w);
-  }
-  if (itnull != 0) {
-    free(t);
+    delete[] t;
   }
 }
 
-void FFT_calculator::ddst2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
+void Circuit::ddst2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
 #ifdef USE_FFT2D_THREADS
   void ddxt2d0_subth(int n1, int n2, int ics, int isgn, float **a, int *ip,
                      float *w);
@@ -3983,30 +3912,19 @@ void FFT_calculator::ddst2d(int n1, int n2, int isgn, float **a, float *t, int *
     } else if (n2 < 2 * nthread) {
       nt >>= 2;
     }
-    t = (float *) malloc(sizeof(float) * nt);
+    t = new float[nt];
     fft2d_alloc_error_check(t);
-  }
-#ifdef USE_FFT2D_THREADS
-  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
-    ddxt2d0_subth(n1, n2, 1, isgn, a, ip, w);
-    ddxt2d_subth(n1, n2, 1, isgn, a, t, ip, w);
-  }
-  else
-#endif /* USE_FFT2D_THREADS */
-  {
     for (i = 0; i < n1; i++) {
       ddst(n2, isgn, a[i], ip, w);
     }
     ddxt2d_sub(n1, n2, 1, isgn, a, t, ip, w);
-  }
-  if (itnull != 0) {
-    free(t);
+    delete[] t;
   }
 }
 
 /* -------- child routines -------- */
 
-void FFT_calculator::cdft2d_sub(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
+void Circuit::cdft2d_sub(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
   int i, j;
 
   if (n2 > 4) {
@@ -4064,7 +3982,7 @@ void FFT_calculator::cdft2d_sub(int n1, int n2, int isgn, float **a, float *t, i
   }
 }
 
-void FFT_calculator::rdft2d_sub(int n1, int isgn, float **a) {
+void Circuit::rdft2d_sub(int n1, int isgn, float **a) {
   int n1h, i, j;
   float xi;
 
@@ -4090,7 +4008,7 @@ void FFT_calculator::rdft2d_sub(int n1, int isgn, float **a) {
   }
 }
 
-void FFT_calculator::ddxt2d_sub(int n1, int n2, int ics, int isgn, float **a, float *t, int *ip,
+void Circuit::ddxt2d_sub(int n1, int n2, int ics, int isgn, float **a, float *t, int *ip,
                                 float *w) {
   int i, j;
 

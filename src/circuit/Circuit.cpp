@@ -48,7 +48,12 @@ void Circuit::init() {
   dbBlock *block = parser_.db_database_->getChip()->getBlock();
   dbSet<dbInst> db_instances = block->getInsts();
   dbSet<dbNet> db_nets = block->getNets();
+  auto lib = parser_.db_database_->findLib("nangate");
 
+  /// Die setting
+  data_storage_.die.setDbBlock(block);
+  die_ = &data_storage_.die;
+  total_cell_area = 0;
   /*!
    * @brief
    * Instance setting
@@ -58,8 +63,14 @@ void Circuit::init() {
    * 2. Then it makes pointer set for \c Circuit class, \n
    * 3. And also makes mapping from \c db_instance to instance pointer. \n\n
    * */
-  data_storage_.instances.reserve(db_instances.size());  // real data for instance
-  instance_pointers_.reserve(db_instances.size());  // pointer data for instances
+  // Filler insertion
+  totalAreaFC = 1.2 * (die_->getArea() - total_cell_area) - total_cell_area;
+  areaFC = total_cell_area / db_instances.size();
+  cntFC = (int)(totalAreaFC/areaFC);
+  
+  data_storage_.instances.reserve(db_instances.size() + cntFC);  // real data for instance
+  instance_pointers_.reserve(db_instances.size() + cntFC);  // pointer data for instances
+
   // 1. make real data for instances
   for (odb::dbInst *db_inst : db_instances) {
     Instance instance(db_inst);
@@ -137,11 +148,47 @@ void Circuit::init() {
     data_mapping_.net_map[net.getDbNet()] = &net;
   }
 
+  for (auto instance: instance_pointers_) {
+    total_cell_area += instance->getArea();
+  }
 
-  /// Die setting
-  data_storage_.die.setDbBlock(block);
-  die_ = &data_storage_.die;
+
+  
+  mt19937 genX(random_device{}());
+  mt19937 genY(random_device{}());
+  uniform_real_distribution<float> disX(0, die_->getWidth());
+  uniform_real_distribution<float> disY(0, die_->getHeight());
+  // for(auto n : lib->getMasters()) {
+  //   cout << n->getName() <<endl;
+  // }
+  for(int i = 0;i<cntFC; i++) {
+    string name =  "_filler" + to_string(i);
+    // dbInst *fillerInst = dbInst::create(block, lib->findMaster("FILLCELL_X1"), name.c_str());
+    // Instance filler(fillerInst);
+    Instance filler;
+    // cout<<filler.name_<<endl;
+    filler.isFiller = true;
+    filler.fillerWidth = sqrt(areaFC);
+    filler.fillerHeight = sqrt(areaFC);
+    filler.setCoordinate(floor(disX(genX)), floor(disY(genY)));
+    // filler.setDataStorage(&data_storage_);
+    // filler.setDataMapping(&data_mapping_);
+    data_storage_.instances.push_back(filler);
+  }
+
+  for (auto &instance : data_storage_.instances) {
+    if(instance.isFiller) {
+      // cout<<instance.name_<<endl;      
+      instance_pointers_.push_back(&instance);
+      // data_mapping_.inst_map[instance.getDbInst()] = &instance;
+    }
+  }
+  
+  for(auto &inst : instance_pointers_) {
+    cout<<inst->name_<<endl;      
+  }
 }
+
 void Circuit::write(const string &out_file_name) {
   parser_.writeDef(out_file_name);
 }
@@ -160,18 +207,15 @@ void Circuit::analyzeBench() {
   cout << "Instance #: " << instance_pointers_.size() << endl;
   cout << "Net #: " << net_pointers_.size() << endl;
   cout << "IO pad #: " << pad_pointers_.size() << endl;
-  total_cell_area = 0;
   uint64 die_area = die_->getArea();
-  for (auto instance: instance_pointers_) {
-    total_cell_area += instance->getArea();
-  }
+  
   cout << scientific << endl;
-  cout << "Total Cell Area: " << static_cast<double>(total_cell_area)  << endl;
-  cout << "Die Area: " << static_cast<double>(die_area)  << endl;
+  cout << "Total Cell Area: " << static_cast<float>(total_cell_area)  << endl;
+  cout << "Die Area: " << static_cast<float>(die_area)  << endl;
   cout << "===================================================" << endl;
 }
 
-void Circuit::placeMap(vector<double> &vX, vector<double> &vY) {
+void Circuit::placeMap(vector<float> &vX, vector<float> &vY) {
   uint die_width = die_->getWidth();
   uint die_height = die_->getHeight();
   for (auto &inst : instance_pointers_) {

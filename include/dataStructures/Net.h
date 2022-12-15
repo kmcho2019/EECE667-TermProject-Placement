@@ -84,14 +84,14 @@ class Net {
   /// get weight of the net
   int getWeight();
 
-  double sumPosX, sumNegX, sumCPosX, sumCNegX;
-  double sumPosY, sumNegY, sumCPosY, sumCNegY;
-  vector<double> gradWAX, gradWAY;
+  float sumPosX, sumNegX, sumCPosX, sumCNegX;
+  float sumPosY, sumNegY, sumCPosY, sumCNegY;
+  vector<float> gradWAX, gradWAY;
 
   /// get HPWLe of the net
   ulong getHPWL();
-  double getHPWL_WA(double waCoeffX, double waCoeffY);
-  void calcHPWL_gradWA(double waCoeffX, double waCoeffY);
+  float getHPWL_WA(float waCoeffX, float waCoeffY);
+  void calcHPWL_gradWA(float waCoeffX, float waCoeffY);
 };
 
 }

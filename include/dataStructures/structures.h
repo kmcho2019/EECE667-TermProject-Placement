@@ -60,6 +60,7 @@ struct data_storage {
 /// data mapping from db to data_storage
 struct data_mapping {
   std::unordered_map<dbInst *, Instance *> inst_map;
+  // std::unordered_map<dbInst *, Instance *> inst_map;
   std::unordered_map<dbNet *, Net *> net_map;
   /// mapping for terminals on instance (pins on cell)
   std::unordered_map<dbITerm *, Pin *> pin_map_i;

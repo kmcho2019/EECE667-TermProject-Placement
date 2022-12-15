@@ -94,7 +94,7 @@ class Pin {
   /// \details
   /// the returned coordinate will be the center of the box (pin shape)
   pair<int, int> getCoordinate();
-  double gradWAX = 0.0, gradWAY = 0.0;
+  float gradWAX = 0.0, gradWAY = 0.0;
 };
 }
 #endif //PLACER_INCLUDE_DATASTRUCTURES_PIN_H_
