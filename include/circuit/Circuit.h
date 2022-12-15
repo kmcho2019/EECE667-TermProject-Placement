@@ -80,7 +80,8 @@ class Bin {
       } else {
         long long dx = (long long)instance_upper_right.first - (long long)lower_left_.first;
         long long dy = (long long)instance_upper_right.second - (long long)lower_left_.second;
-        stdArea += dx * dy;
+        if(instance->isFiller) fillerArea += dx * dy;
+        else stdArea += dx * dy;
       }
     }
   }

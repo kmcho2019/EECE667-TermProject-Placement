@@ -315,10 +315,11 @@ Appendix :
 */
 
 #include <cmath>
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "Circuit.h"
+
 #define fft2d_alloc_error_check(p)                        \
   {                                                       \
     if((p) == NULL) {                                     \
@@ -3652,17 +3653,34 @@ void Circuit::cdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, flo
     } else if (n2 < 4 * nthread) {
       nt >>= 2;
     }
-    t = new float[nt];
+    t = (float *) malloc(sizeof(float) * nt);
     fft2d_alloc_error_check(t);
+  }
+#ifdef USE_FFT2D_THREADS
+  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
+    xdft2d0_subth(n1, n2, 0, isgn, a, ip, w);
+    cdft2d_subth(n1, n2, isgn, a, t, ip, w);
+  }
+  else
+#endif /* USE_FFT2D_THREADS */
+  {
     for (i = 0; i < n1; i++) {
       cdft(n2, isgn, a[i], ip, w);
     }
     cdft2d_sub(n1, n2, isgn, a, t, ip, w);
-    delete[] t;
+  }
+  if (itnull != 0) {
+    free(t);
   }
 }
 
 void Circuit::rdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, float *w) {
+#ifdef USE_FFT2D_THREADS
+  void xdft2d0_subth(int n1, int n2, int icr, int isgn, float **a, int *ip,
+                     float *w);
+  void cdft2d_subth(int n1, int n2, int isgn, float **a, float *t, int *ip,
+                    float *w);
+#endif /* USE_FFT2D_THREADS */
   int n, nw, nc, itnull, nthread, nt, i;
 
   n = n1 << 1;
@@ -3692,8 +3710,24 @@ void Circuit::rdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, flo
     } else if (n2 < 4 * nthread) {
       nt >>= 2;
     }
-    t = new float[nt];
+    t = (float *) malloc(sizeof(float) * nt);
     fft2d_alloc_error_check(t);
+  }
+#ifdef USE_FFT2D_THREADS
+  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
+    if(isgn < 0) {
+      rdft2d_sub(n1, isgn, a);
+      cdft2d_subth(n1, n2, isgn, a, t, ip, w);
+    }
+    xdft2d0_subth(n1, n2, 1, isgn, a, ip, w);
+    if(isgn >= 0) {
+      cdft2d_subth(n1, n2, isgn, a, t, ip, w);
+      rdft2d_sub(n1, isgn, a);
+    }
+  }
+  else
+#endif /* USE_FFT2D_THREADS */
+  {
     if (isgn < 0) {
       rdft2d_sub(n1, isgn, a);
       cdft2d_sub(n1, n2, isgn, a, t, ip, w);
@@ -3705,7 +3739,9 @@ void Circuit::rdft2d(int n1, int n2, int isgn, float **a, float *t, int *ip, flo
       cdft2d_sub(n1, n2, isgn, a, t, ip, w);
       rdft2d_sub(n1, isgn, a);
     }
-    delete[] t;
+  }
+  if (itnull != 0) {
+    free(t);
   }
 }
 
@@ -3777,13 +3813,24 @@ void Circuit::ddcst2d(int n1, int n2, int isgn, float **a, float *t, int *ip, fl
     } else if (n2 < 2 * nthread) {
       nt >>= 2;
     }
-    t = new float[nt];
+    t = (float *) malloc(sizeof(float) * nt);
     fft2d_alloc_error_check(t);
+  }
+#ifdef USE_FFT2D_THREADS
+  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
+    ddxt2d0_subth(n1, n2, 1, isgn, a, ip, w);
+    ddxt2d_subth(n1, n2, 0, isgn, a, t, ip, w);
+  }
+  else
+#endif /* USE_FFT2D_THREADS */
+  {
     for (i = 0; i < n1; i++) {
       ddst(n2, isgn, a[i], ip, w);
     }
     ddxt2d_sub(n1, n2, 0, isgn, a, t, ip, w);
-    delete[] t;
+  }
+  if (itnull != 0) {
+    free(t);
   }
 }
 
@@ -3823,13 +3870,24 @@ void Circuit::ddsct2d(int n1, int n2, int isgn, float **a, float *t, int *ip, fl
     } else if (n2 < 2 * nthread) {
       nt >>= 2;
     }
-    t = new float[nt];
+    t = (float *) malloc(sizeof(float) * nt);
     fft2d_alloc_error_check(t);
+  }
+#ifdef USE_FFT2D_THREADS
+  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
+    ddxt2d0_subth(n1, n2, 0, isgn, a, ip, w);
+    ddxt2d_subth(n1, n2, 1, isgn, a, t, ip, w);
+  }
+  else
+#endif /* USE_FFT2D_THREADS */
+  {
     for (i = 0; i < n1; i++) {
       ddct(n2, isgn, a[i], ip, w);
     }
     ddxt2d_sub(n1, n2, 1, isgn, a, t, ip, w);
-    delete[] t;
+  }
+  if (itnull != 0) {
+    free(t);
   }
 }
 
@@ -3860,19 +3918,33 @@ void Circuit::ddct2d(int n1, int n2, int isgn, float **a, float *t, int *ip, flo
   if (t == NULL) {
     itnull = 1;
     nthread = 1;
+#ifdef USE_FFT2D_THREADS
+    nthread = FFT2D_MAX_THREADS;
+#endif /* USE_FFT2D_THREADS */
     nt = 4 * nthread * n1;
     if (n2 == 2 * nthread) {
       nt >>= 1;
     } else if (n2 < 2 * nthread) {
       nt >>= 2;
     }
-    t = new float[nt];
+    t = (float *) malloc(sizeof(float) * nt);
     fft2d_alloc_error_check(t);
+  }
+#ifdef USE_FFT2D_THREADS
+  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
+    ddxt2d0_subth(n1, n2, 0, isgn, a, ip, w);
+    ddxt2d_subth(n1, n2, 0, isgn, a, t, ip, w);
+  }
+  else
+#endif /* USE_FFT2D_THREADS */
+  {
     for (i = 0; i < n1; i++) {
       ddct(n2, isgn, a[i], ip, w);
     }
     ddxt2d_sub(n1, n2, 0, isgn, a, t, ip, w);
-    delete[] t;
+  }
+  if (itnull != 0) {
+    free(t);
   }
 }
 
@@ -3912,13 +3984,24 @@ void Circuit::ddst2d(int n1, int n2, int isgn, float **a, float *t, int *ip, flo
     } else if (n2 < 2 * nthread) {
       nt >>= 2;
     }
-    t = new float[nt];
+    t = (float *) malloc(sizeof(float) * nt);
     fft2d_alloc_error_check(t);
+  }
+#ifdef USE_FFT2D_THREADS
+  if((float)n1 * n2 >= (float)FFT2D_THREADS_BEGIN_N) {
+    ddxt2d0_subth(n1, n2, 1, isgn, a, ip, w);
+    ddxt2d_subth(n1, n2, 1, isgn, a, t, ip, w);
+  }
+  else
+#endif /* USE_FFT2D_THREADS */
+  {
     for (i = 0; i < n1; i++) {
       ddst(n2, isgn, a[i], ip, w);
     }
     ddxt2d_sub(n1, n2, 1, isgn, a, t, ip, w);
-    delete[] t;
+  }
+  if (itnull != 0) {
+    free(t);
   }
 }
 

@@ -9,8 +9,8 @@
 
 #include "Circuit.h"
 #include "matrixSolver.h"
-#define number_of_grid_X 16
-#define number_of_grid_Y 16
+#define number_of_grid_X 32
+#define number_of_grid_Y 32
 
 
 namespace Placer {
@@ -330,7 +330,12 @@ float Circuit::initLambda() {
         instance_lower_left.first + instance->getWidth(),
         instance_lower_left.second + instance->getHeight()
     };
-
+    for (int i = 0; i <= number_of_grid_X; ++i) {
+      for (int j = 0; j <= number_of_grid_Y; ++j) {
+        bins2D[i][j].stdArea = 0;
+        bins2D[i][j].fillerArea = 0;
+      }
+    }
     int left_idx = static_cast<int>(instance_lower_left.first / normal_bin_width);
     int right_idx = static_cast<int>(instance_upper_right.first / normal_bin_width);
     int lower_idx = static_cast<int>(instance_lower_left.second / normal_bin_width);
@@ -343,7 +348,7 @@ float Circuit::initLambda() {
   }
   for (int i = 0; i < number_of_grid_X; i++) {
     for (int j = 0; j < number_of_grid_Y; j++) {
-      float density = bins2D[i][j].stdArea / (normal_bin_width * normal_bin_height);
+      float density = (bins2D[i][j].stdArea + bins2D[i][j].fillerArea) / (normal_bin_width * normal_bin_height);
       bins2D[i][j].density = density;
     }
   }
@@ -476,6 +481,7 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
   for (int i = 0; i <= number_of_grid_X; ++i) {
     for (int j = 0; j <= number_of_grid_Y; ++j) {
       bins2D[i][j].stdArea = 0;
+      bins2D[i][j].fillerArea = 0;
     }
   }
   // get utility in each bins
@@ -488,8 +494,8 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
 
     int left_idx = static_cast<int>(instance_lower_left.first / normal_bin_width);
     int right_idx = static_cast<int>(instance_upper_right.first / normal_bin_width);
-    int lower_idx = static_cast<int>(instance_lower_left.second / normal_bin_width);
-    int upper_idx = static_cast<int>(instance_upper_right.second / normal_bin_width);
+    int lower_idx = static_cast<int>(instance_lower_left.second / normal_bin_height);
+    int upper_idx = static_cast<int>(instance_upper_right.second / normal_bin_height);
     for (int j = left_idx; j <= right_idx; ++j) {
       for (int k = lower_idx; k <= upper_idx; ++k) {
         bins2D.at(j).at(k).getOverlapArea(instance);
@@ -498,11 +504,13 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
   }
   for (int i = 0; i < number_of_grid_X; i++) {
     for (int j = 0; j < number_of_grid_Y; j++) {
-      float density = bins2D[i][j].stdArea / (normal_bin_width * normal_bin_height);
+      float density = (bins2D[i][j].stdArea + bins2D[i][j].fillerArea);
       bins2D[i][j].density = density;
     }
   }
   vector<vector<float> > a(number_of_grid_X, vector<float> (number_of_grid_Y));
+  cosTable.resize(number_of_grid_X * 3 / 2, 0);
+  workArea_.resize(round(sqrt(number_of_grid_X)) + 2, 0);
 
   float** binDensity = new float *[number_of_grid_X];
   float** electricPotential = new float *[number_of_grid_X];
@@ -517,13 +525,17 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
 
     for (int j = 0; j < number_of_grid_Y; j++) {
       binDensity[i][j] = bins2D[i][j].density;
-      electricPotential[i][j] = bins2D[i][j].electricPotential;
-      electricForceX[i][j] = bins2D[i][j].electricField_x;
-      electricForceY[i][j] = bins2D[i][j].electricField_y;
+//      electricPotential[i][j] = bins2D[i][j].electricPotential;
+//      electricForceX[i][j] = bins2D[i][j].electricField_x;
+//      electricForceY[i][j] = bins2D[i][j].electricField_y;
+      electricPotential[i][j] = 0.0f;
+      electricForceX[i][j] = 0.0f;
+      electricForceY[i][j] = 0.0f;
     }
   }
 
-  ddct2d(number_of_grid_X,number_of_grid_Y, -1, binDensity, NULL, workArea_.data(), cosTable.data());
+//  ddct2d(number_of_grid_X,number_of_grid_Y, -1, binDensity, NULL, workArea_.data(), cosTable.data());
+  ddct2d(number_of_grid_X, number_of_grid_Y, -1, binDensity, NULL, (int*) &workArea_[0], (float*) &cosTable[0]);
 
   for (int i = 0; i < number_of_grid_X; ++i) {
     binDensity[i][0] *= 0.5;
@@ -561,9 +573,9 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
     }
   }
 
-  ddct2d(number_of_grid_X, number_of_grid_Y, 1, electricPotential, NULL, workArea_.data(), cosTable.data());
-  ddsct2d(number_of_grid_X, number_of_grid_Y, 1, electricForceX, NULL, workArea_.data(), cosTable.data());
-  ddcst2d(number_of_grid_X, number_of_grid_Y, 1, electricForceY, NULL, workArea_.data(), cosTable.data());
+  ddct2d(number_of_grid_X, number_of_grid_Y, 1, electricPotential, NULL, (int*) &workArea_[0], (float*) &cosTable[0]);
+  ddsct2d(number_of_grid_X, number_of_grid_Y, 1, electricForceX, NULL, (int*) &workArea_[0], (float*) &cosTable[0]);
+  ddcst2d(number_of_grid_X, number_of_grid_Y, 1, electricForceY, NULL, (int*) &workArea_[0], (float*) &cosTable[0]);
 
   for (int i = 0; i < number_of_grid_X; i++) {
     for (int j = 0; j < number_of_grid_Y; j++) {
@@ -598,7 +610,8 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
       net->calcHPWL_gradWA(gamma, gamma);
     }
   }
-
+  float sum = 0.0f;
+  float absSum = 0.0f;
   for(auto &inst : instance_pointers_) {
     int instNum = instMap.find(inst->getName())->second;
 
@@ -608,9 +621,11 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
       gradInstY += pin->gradWAY;
     }
     pair<int, int> coordinate = inst->binCoordinate;
-
-    gradX[instNum] += gradInstX + lambda * (inst->getArea() * bins2D[coordinate.first][coordinate.second].electricField_x);
-    gradY[instNum] += gradInstY + lambda * (inst->getArea() * bins2D[coordinate.first][coordinate.second].electricField_y);
+    float temp = lambda * ((double)inst->getArea() * bins2D[coordinate.first][coordinate.second].electricField_x);
+    sum += temp;
+    absSum += abs(temp);
+    gradX[instNum] += gradInstX + lambda * ((double)inst->getArea() * bins2D[coordinate.first][coordinate.second].electricField_x);
+    gradY[instNum] += gradInstY + lambda * ((double)inst->getArea() * bins2D[coordinate.first][coordinate.second].electricField_y);
   }
 //  cout<<"END"<<endl;
 }
@@ -742,7 +757,7 @@ void Circuit::myPlacement() {
   while(condition) {
     // Update coeff
     float mew = 1.1;
-    float diff_ = 1.0 - (float)(HPWL - prevHPWL)/3.5e5;
+    float diff_ = 1.0 - (float)(HPWL - prevHPWL)/3.5e6;
     // cout << HPWL << " " << prevHPWL<< " " << diff_<< endl;
     if(diff_ <= -3.1) mew = 0.75;
     else if(diff_ >= 1) mew = 1.1;
@@ -750,7 +765,6 @@ void Circuit::myPlacement() {
       mew = clamp(pow(mew_0, diff_), 0.75, 1.1);
     }
     float lambda = mew * prev_lambda;
-    // cout << lambda << " lambda " <<prev_lambda << endl;
     
     prevHPWL = HPWL;
     prev_lambda = lambda;
@@ -771,7 +785,7 @@ void Circuit::myPlacement() {
     float sum = 0.0;
     float alpha_hat = calcAlphaHat(vX, vY, prev_vX, prev_vY, gradX, gradY, prev_gradX, prev_gradY);
     
-    float epsilon = 0.95;
+    float epsilon = 0.95f;
     float alpha_k_max = max(alpha_max, 2 * prev_alpha);
     float next_ak;
 
@@ -843,12 +857,15 @@ void Circuit::myPlacement() {
     for (Net *net : net_pointers_) {
       HPWL += (long long) net->getHPWL();
     }
+
     condition = densityCheck(normal_bin_width, normal_bin_height);
 
-    cout << "iter " << iter++ << " HPWL : " << HPWL << "\tTIME : " << tresult << endl;
-    if(iter >5) condition = false;
-    string img_file_name = "result" + to_string(iter);
-    saveImg(img_file_name);
+    if(iter % 5 == 0) {
+      cout << "iter " << iter << " HPWL : " << HPWL << "\tTIME : " << tresult << endl;
+      string img_file_name = "result" + to_string(iter);
+      saveImg(img_file_name);
+    }
+    iter++;
   }
 //  for(auto &id : fillerID) {
 //    instance_pointers_.erase(instance_pointers_.begin()+id);

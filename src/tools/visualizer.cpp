@@ -53,9 +53,8 @@ void drawCell(Image &image, Instance *cell) {
   if (lower_left_y == upper_right_y)
     upper_right_y = lower_left_y + 1;
   if(cell->isFiller)
-    image.draw_rectangle(lower_left_x, lower_left_y, upper_right_x, upper_right_y, Color::LIGHT_GREEN);
-
-  image.draw_rectangle(lower_left_x, lower_left_y, upper_right_x, upper_right_y, Color::BLACK);
+    image.draw_rectangle(lower_left_x, lower_left_y, upper_right_x, upper_right_y, Color::BLUE);
+  else image.draw_rectangle(lower_left_x, lower_left_y, upper_right_x, upper_right_y, Color::BLACK);
 }
 void drawNet(Image &image, Placer::Net *net) {
   uint64 center_x = 0, center_y = 0;
