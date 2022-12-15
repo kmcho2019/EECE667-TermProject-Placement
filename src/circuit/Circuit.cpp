@@ -64,12 +64,18 @@ void Circuit::init() {
    * 3. And also makes mapping from \c db_instance to instance pointer. \n\n
    * */
   // Filler insertion
+  for (auto *db_inst: db_instances) {
+    Instance instance(db_inst);
+    total_cell_area += instance.getArea();
+  }
   totalAreaFC = 1.2 * (die_->getArea() - total_cell_area) - total_cell_area;
-  areaFC = total_cell_area / db_instances.size();
-  cntFC = (int)(totalAreaFC/areaFC);
-  
+  areaFC = total_cell_area / (float)db_instances.size();
+  cntFC = floor(totalAreaFC/areaFC);
+
   data_storage_.instances.reserve(db_instances.size() + cntFC);  // real data for instance
   instance_pointers_.reserve(db_instances.size() + cntFC);  // pointer data for instances
+  data_storage_.nets.reserve(db_nets.size());
+  net_pointers_.reserve(db_nets.size());
 
   // 1. make real data for instances
   for (odb::dbInst *db_inst : db_instances) {
@@ -82,10 +88,34 @@ void Circuit::init() {
     }
     data_storage_.instances.push_back(instance);
   }
+
+  mt19937 genX(random_device{}());
+  mt19937 genY(random_device{}());
+  uniform_real_distribution<float> disX(0, die_->getWidth());
+  uniform_real_distribution<float> disY(0, die_->getHeight());
+  // for(auto n : lib->getMasters()) {
+  //   cout << n->getName() <<endl;
+  // }
+  for(int i = 0;i<cntFC; i++) {
+    Instance filler;
+    string name =  "_filler" + to_string(i);
+    // cout<<filler.name_<<endl;
+    filler.isFiller = true;
+    filler.name_ = name.c_str();
+    filler.fillerWidth = sqrt(areaFC);
+    filler.fillerHeight = sqrt(areaFC);
+    filler.setCoordinate(floor(disX(genX)), floor(disY(genY)));
+    // filler.setDataStorage(&data_storage_);
+    // filler.setDataMapping(&data_mapping_);
+    data_storage_.instances.push_back(filler);
+  }
+
   // 2-3. make pointer set and map from db_instance to instance pointer
   for (auto &instance : data_storage_.instances) {
     instance_pointers_.push_back(&instance);
-    data_mapping_.inst_map[instance.getDbInst()] = &instance;
+    if(!instance.isFiller) {
+      data_mapping_.inst_map[instance.getDbInst()] = &instance;
+    }
   }
 
 
@@ -99,6 +129,7 @@ void Circuit::init() {
   // 1. make real data
   // 1-1. Instance terminals
   for (auto instance : instance_pointers_) {
+    if(instance->isFiller) continue;
     for (dbITerm *db_i_term : instance->getDbInst()->getITerms()) {
       Pin pin(db_i_term);
       pin.setDataStorage(&data_storage_);
@@ -133,8 +164,6 @@ void Circuit::init() {
    * @details
    * Same with above way
    */
-  data_storage_.nets.reserve(db_nets.size());
-  net_pointers_.reserve(db_nets.size());
   // 1. make real data
   for (odb::dbNet *db_net : db_nets) {
     Net net(db_net);
@@ -148,45 +177,9 @@ void Circuit::init() {
     data_mapping_.net_map[net.getDbNet()] = &net;
   }
 
-  for (auto instance: instance_pointers_) {
-    total_cell_area += instance->getArea();
-  }
-
-
-  
-  mt19937 genX(random_device{}());
-  mt19937 genY(random_device{}());
-  uniform_real_distribution<float> disX(0, die_->getWidth());
-  uniform_real_distribution<float> disY(0, die_->getHeight());
-  // for(auto n : lib->getMasters()) {
-  //   cout << n->getName() <<endl;
-  // }
-  for(int i = 0;i<cntFC; i++) {
-    string name =  "_filler" + to_string(i);
-    // dbInst *fillerInst = dbInst::create(block, lib->findMaster("FILLCELL_X1"), name.c_str());
-    // Instance filler(fillerInst);
-    Instance filler;
-    // cout<<filler.name_<<endl;
-    filler.isFiller = true;
-    filler.fillerWidth = sqrt(areaFC);
-    filler.fillerHeight = sqrt(areaFC);
-    filler.setCoordinate(floor(disX(genX)), floor(disY(genY)));
-    // filler.setDataStorage(&data_storage_);
-    // filler.setDataMapping(&data_mapping_);
-    data_storage_.instances.push_back(filler);
-  }
-
-  for (auto &instance : data_storage_.instances) {
-    if(instance.isFiller) {
-      // cout<<instance.name_<<endl;      
-      instance_pointers_.push_back(&instance);
-      // data_mapping_.inst_map[instance.getDbInst()] = &instance;
-    }
-  }
-  
-  for(auto &inst : instance_pointers_) {
-    cout<<inst->name_<<endl;      
-  }
+//  for(auto &inst : instance_pointers_) {
+//    cout<<inst->name_<<endl;
+//  }
 }
 
 void Circuit::write(const string &out_file_name) {
@@ -208,10 +201,10 @@ void Circuit::analyzeBench() {
   cout << "Net #: " << net_pointers_.size() << endl;
   cout << "IO pad #: " << pad_pointers_.size() << endl;
   uint64 die_area = die_->getArea();
-  
+
   cout << scientific << endl;
-  cout << "Total Cell Area: " << static_cast<float>(total_cell_area)  << endl;
-  cout << "Die Area: " << static_cast<float>(die_area)  << endl;
+  cout << "Total Cell Area: " << static_cast<float>(total_cell_area) << endl;
+  cout << "Die Area: " << static_cast<float>(die_area) << endl;
   cout << "===================================================" << endl;
 }
 
@@ -220,8 +213,8 @@ void Circuit::placeMap(vector<float> &vX, vector<float> &vY) {
   uint die_height = die_->getHeight();
   for (auto &inst : instance_pointers_) {
     int instID = instMap.find(inst->getName())->second;
-    int newX = clamp(int(vX[instID]), 0, (int)die_width - (int)inst->getWidth());
-    int newY = clamp(int(vY[instID]), 0, (int)die_height - (int)inst->getHeight());
+    int newX = clamp(int(vX[instID]), 0, (int) die_width - (int) inst->getWidth());
+    int newY = clamp(int(vY[instID]), 0, (int) die_height - (int) inst->getHeight());
     inst->setCoordinate(newX, newY);
   }
 }

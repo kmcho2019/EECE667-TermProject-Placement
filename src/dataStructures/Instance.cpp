@@ -88,6 +88,9 @@ void Instance::setCoordinate(int x, int y) {
     db_inst_->setPlacementStatus(odb::dbPlacementStatus::PLACED);
     db_inst_->setLocation(x, y);
   }
+  if(isFiller) {
+    fillerCoordinate = make_pair(x, y);
+  }
 }
 bool Instance::isPlaced() {
   if (db_inst_->getPlacementStatus() == odb::dbPlacementStatus::PLACED) {

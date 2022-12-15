@@ -44,25 +44,45 @@
 #include "Pin.h"
 #include "Die.h"
 
-
 namespace Placer {
 using namespace odb;
 class Bin {
-public:
-  float size_x, size_y;
-  pair<float, float> LL, UR;
-  float stdArea = 0.0;
-  float density = 0.0;  // means ρ_DCT in eq (22)
-  float electricPotential = 0.0;  // means phi_DCT in eq (23)
-  float electricField_x = 0.0;  // means ξ_x_DSCT in eq (24)
+ public:
+  Bin() = default;
+  explicit Bin(int area, pair<int, int> lower_left, pair<int, int> upper_right)
+      : bin_area_(area), lower_left_(std::move(lower_left)), upper_right_(std::move(upper_right)) {}
+  pair<int, int> lower_left_;
+  pair<int, int> upper_right_;
+  float bin_area_{0};
+  long long stdArea{0};
+  long long fillerArea{0};
+  float density = 0.0;
+  float electricPotential = 0.0;
+  float electricField_x = 0.0;
   float electricField_y = 0.0;
-  
-  void reset() {
-    stdArea = 0.0;
-    density = 0.0;  // means ρ_DCT in eq (22)
-    electricPotential = 0.0;  // means phi_DCT in eq (23)
-    electricField_x = 0.0;  // means ξ_x_DSCT in eq (24)
-    electricField_y = 0.0;
+
+  void getOverlapArea(Instance *instance) {
+    if (bin_area_ == 0) {
+      // not initialized.
+      assert(0);
+    } else {
+      pair<int, int> instance_lower_left = instance->getCoordinate();
+      pair<int, int> instance_upper_right
+          {instance_lower_left.first + instance->getWidth(), instance_lower_left.second + instance->getHeight()};
+      if (instance_upper_right.first <= lower_left_.first) {
+        return;
+      } else if (instance_upper_right.second <= lower_left_.second) {
+        return;
+      } else if (instance_lower_left.first >= upper_right_.first) {
+        return;
+      } else if (instance_lower_left.second >= upper_right_.second) {
+        return;
+      } else {
+        long long dx = (long long)instance_upper_right.first - (long long)lower_left_.first;
+        long long dy = (long long)instance_upper_right.second - (long long)lower_left_.second;
+        stdArea += dx * dy;
+      }
+    }
   }
 };
 
@@ -102,7 +122,7 @@ class Circuit {
   /// \details
   /// It saves the picture for the cells, pads, and nets in the circuit,
   /// in the output/images/file_name.png
-  void saveImg(const string& file_name);
+  void saveImg(const string &file_name);
 
   /// \brief
   /// return the HPWL of the total circuit
@@ -123,6 +143,7 @@ class Circuit {
   vector<float> wy_sq;
   vector<float> cosTable;
   vector<int> workArea_;
+  vector<vector<Bin> > bins2D;
 
   void howToUse();
   void placeExample();

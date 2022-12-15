@@ -52,6 +52,8 @@ void drawCell(Image &image, Instance *cell) {
     upper_right_x = lower_left_x + 1;
   if (lower_left_y == upper_right_y)
     upper_right_y = lower_left_y + 1;
+  if(cell->isFiller)
+    image.draw_rectangle(lower_left_x, lower_left_y, upper_right_x, upper_right_y, Color::LIGHT_GREEN);
 
   image.draw_rectangle(lower_left_x, lower_left_y, upper_right_x, upper_right_y, Color::BLACK);
 }
