@@ -53,7 +53,7 @@ void Circuit::init() {
   /// Die setting
   data_storage_.die.setDbBlock(block);
   die_ = &data_storage_.die;
-  total_cell_area = 0;
+  total_cell_area = 0.0;
   /*!
    * @brief
    * Instance setting
@@ -64,14 +64,25 @@ void Circuit::init() {
    * 3. And also makes mapping from \c db_instance to instance pointer. \n\n
    * */
   // Filler insertion
+  vector<float> instSize;
   for (auto *db_inst: db_instances) {
     Instance instance(db_inst);
-    total_cell_area += instance.getArea();
+    total_cell_area += (float)instance.getArea();
+    instSize.push_back((float)instance.getArea());
   }
+  sort(instSize.begin(), instSize.end());
+  float sum = 0.0f;
+  int cnt = 0;
+  for (int i = floor(0.1 * instSize.size()); i < floor(0.9 * instSize.size()); ++i) {
+    sum += instSize[i];
+    cnt ++;
+  }
+  sum = sum/cnt;
   totalAreaFC = 1.2 * (die_->getArea() - total_cell_area) - total_cell_area;
-  areaFC = total_cell_area / (float)db_instances.size();
-  cntFC = floor(totalAreaFC/areaFC);
 
+  areaFC = sum;
+  cntFC = floor(totalAreaFC/areaFC);
+  int widthFC = floor(sqrt(areaFC));
   data_storage_.instances.reserve(db_instances.size() + cntFC);  // real data for instance
   instance_pointers_.reserve(db_instances.size() + cntFC);  // pointer data for instances
   data_storage_.nets.reserve(db_nets.size());
@@ -93,20 +104,15 @@ void Circuit::init() {
   mt19937 genY(random_device{}());
   uniform_real_distribution<float> disX(0, die_->getWidth());
   uniform_real_distribution<float> disY(0, die_->getHeight());
-  // for(auto n : lib->getMasters()) {
-  //   cout << n->getName() <<endl;
-  // }
   for(int i = 0;i<cntFC; i++) {
     Instance filler;
     string name =  "_filler" + to_string(i);
     // cout<<filler.name_<<endl;
     filler.isFiller = true;
     filler.name_ = name.c_str();
-    filler.fillerWidth = sqrt(areaFC);
-    filler.fillerHeight = sqrt(areaFC);
+    filler.fillerWidth = widthFC;
+    filler.fillerHeight = widthFC;
     filler.setCoordinate(floor(disX(genX)), floor(disY(genY)));
-    // filler.setDataStorage(&data_storage_);
-    // filler.setDataMapping(&data_mapping_);
     data_storage_.instances.push_back(filler);
   }
 

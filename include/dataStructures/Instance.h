@@ -95,12 +95,7 @@ class Instance {
   float fillerHeight = 0.0f;
 
   pair<int, int> binCoordinate;
-  uint binType;
-  float overflowX, overflowY;
-  pair<float, float> spreadForce;
   pair<float, float> densityForce;
-  pair<float, float> hpwlForce; 
-  pair<float, float> globalForce; 
 
   std::vector<Pin *> getPins();
 

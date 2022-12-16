@@ -54,21 +54,63 @@ class Bin {
   pair<int, int> lower_left_;
   pair<int, int> upper_right_;
   float bin_area_{0};
-  long long stdArea{0};
-  long long fillerArea{0};
+  float stdArea{0};
+  float fillerArea{0};
   float density = 0.0;
   float electricPotential = 0.0;
   float electricField_x = 0.0;
   float electricField_y = 0.0;
+  vector<pair<Instance *, float> > overlappedInstance;
 
+//  void getOverlapArea(Instance *instance) {
+//    if (bin_area_ == 0) {
+//      assert(0);
+//    } else {
+//      pair<int, int> instance_lower_left = instance->getCoordinate();
+//      pair<int, int> instance_upper_right
+//          {instance_lower_left.first + instance->getWidth(), instance_lower_left.second + instance->getHeight()};
+//      if (instance_upper_right.first <= lower_left_.first) {
+//        return;
+//      } else if (instance_upper_right.second <= lower_left_.second) {
+//        return;
+//      } else if (instance_lower_left.first >= upper_right_.first) {
+//        return;
+//      } else if (instance_lower_left.second >= upper_right_.second) {
+//        return;
+//      } else {
+//        float dx = (float)instance_upper_right.first - (float)lower_left_.first;
+//        float dy = (float)instance_upper_right.second - (float)lower_left_.second;
+//        if(instance->isFiller) fillerArea += dx * dy;
+//        else stdArea += dx * dy;
+//      }
+//    }
+//  }
+
+  void reset() {
+    stdArea = 0;
+    fillerArea = 0;
+    density = 0.0;
+    electricPotential = 0.0;
+    electricField_x = 0.0;
+    electricField_y = 0.0;
+    overlappedInstance.clear();
+  }
   void getOverlapArea(Instance *instance) {
     if (bin_area_ == 0) {
-      // not initialized.
       assert(0);
     } else {
       pair<int, int> instance_lower_left = instance->getCoordinate();
-      pair<int, int> instance_upper_right
-          {instance_lower_left.first + instance->getWidth(), instance_lower_left.second + instance->getHeight()};
+      pair<int, int> instance_upper_right;
+      int bin_width = upper_right_.first - lower_left_.first;
+      float densityX = 1.0;
+      if (instance->getWidth() >= bin_width) {
+        instance_upper_right = make_pair(instance_lower_left.first + instance->getWidth(),
+                                         instance_lower_left.second + instance->getHeight());
+      } else {
+        instance_upper_right =
+            make_pair(instance_lower_left.first + bin_width, instance_lower_left.second + instance->getHeight());
+        density = (float) instance->getWidth() / bin_width;
+      }
       if (instance_upper_right.first <= lower_left_.first) {
         return;
       } else if (instance_upper_right.second <= lower_left_.second) {
@@ -78,10 +120,12 @@ class Bin {
       } else if (instance_lower_left.second >= upper_right_.second) {
         return;
       } else {
-        long long dx = (long long)instance_upper_right.first - (long long)lower_left_.first;
-        long long dy = (long long)instance_upper_right.second - (long long)lower_left_.second;
-        if(instance->isFiller) fillerArea += dx * dy;
-        else stdArea += dx * dy;
+        float dx = (float) instance_upper_right.first - (float) lower_left_.first;
+        float dy = (float) instance_upper_right.second - (float) lower_left_.second;
+        float overlapArea = dx * dy * density;
+        overlappedInstance.push_back(make_pair(instance, overlapArea));
+        if (instance->isFiller) fillerArea += overlapArea;
+        else stdArea += overlapArea;
       }
     }
   }
@@ -109,6 +153,7 @@ class Circuit {
   void myPlacement();
   void calcGradient(std::vector<float> &gradX, std::vector<float> &gradY);
 
+
   /// \brief
   /// get unit of micro
   /// \details
@@ -134,8 +179,8 @@ class Circuit {
   void analyzeBench();
 
   // etc
-  uint64 total_cell_area = 0;
   int cntFC = 0;
+  float total_cell_area = 0.0f;
   float areaFC = 0.0f, totalAreaFC = 0.0f;
   unordered_map<string, int> instMap;
   vector<float> wx;
@@ -149,7 +194,7 @@ class Circuit {
   void howToUse();
   void placeExample();
   void dbTutorial() const;
-  void initialPlacement();
+  void initialPlacement(vector<float> &gradX, vector<float> &gradY);
   void calcGradient(vector<float> &gradX, vector<float> &gradY, float lambda);
   void placeMap(vector<float> &vX, vector<float> &vY);
   bool densityCheck(float normal_bin_width, float normal_bin_height);
