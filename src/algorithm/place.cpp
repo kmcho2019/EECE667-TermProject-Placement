@@ -9,8 +9,8 @@
 
 #include "Circuit.h"
 #include "matrixSolver.h"
-#define number_of_grid_X 32
-#define number_of_grid_Y 32
+#define number_of_grid_X 64
+#define number_of_grid_Y 64
 
 namespace Placer {
 void Circuit::quadraticPlacement() {
@@ -293,12 +293,10 @@ float calcAlphaHat(vector<float> &vX,
     sum += diffX * diffX;
     sum += diffY * diffY;
   }
+  if(sum - 0.0 < 1e-08) return 1e-5;
   float normgradV = sqrt(sum);
 
-  float result = 0.0;
-  if (normgradV != 0.0) result = normV / normgradV;
-
-  return result;
+  return normV / normgradV;
 }
 
 float Circuit::initLambda() {
@@ -396,18 +394,12 @@ float Circuit::initLambda() {
   }
   ddct2d(number_of_grid_X, number_of_grid_Y, -1, binDensity, NULL, workArea_.data(), cosTable.data());
 
-//  for (int i = 0; i < number_of_grid_X; ++i) {
-//    binDensity[i][0] *= 2;
-//  }
-//  for (int i = 0; i < number_of_grid_Y; ++i) {
-//    binDensity[0][i] *= 2;
-//  }
-  for (int i = 0; i < number_of_grid_X; ++i) {
-    binDensity[i][number_of_grid_Y-1] *= 2;
-  }
-  for (int i = 0; i < number_of_grid_Y; ++i) {
-    binDensity[number_of_grid_X-1][i] *= 2;
-  }
+ for (int i = 0; i < number_of_grid_X; ++i) {
+   binDensity[i][0] *= 0.5;
+ }
+ for (int i = 0; i < number_of_grid_Y; ++i) {
+   binDensity[0][i] *= 0.5;
+ }
   for (int i = 0; i < number_of_grid_X; ++i) {
     for (int j = 0; j < number_of_grid_Y; ++j) {
       binDensity[i][j] *= 4.0 / number_of_grid_X / number_of_grid_Y;
@@ -601,7 +593,7 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
     electricForceY[i] = new float[number_of_grid_Y];
 
     for (int j = 0; j < number_of_grid_Y; j++) {
-      binDensity[i][j] = bins2D[i][j].density / normal_bin_width / normal_bin_height;
+      binDensity[i][j] = bins2D[i][j].density / normal_bin_width / normal_bin_height /number_of_grid_X / number_of_grid_Y;
       electricPotential[i][j] = bins2D[i][j].electricPotential;
       electricForceX[i][j] = bins2D[i][j].electricField_x;
       electricForceY[i][j] = bins2D[i][j].electricField_y;
@@ -610,25 +602,25 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
 
 //  ddct2d(number_of_grid_X,number_of_grid_Y, -1, binDensity, NULL, workArea_.data(), cosTable.data());
   ddct2d(number_of_grid_X, number_of_grid_Y, -1, binDensity, NULL, (int *) workArea_.data(), (float *) cosTable.data());
-//
+
 //  for (int i = 0; i < number_of_grid_X; ++i) {
 //    binDensity[i][0] *= 0.5;
 //  }
 //  for (int i = 0; i < number_of_grid_Y; ++i) {
 //    binDensity[0][i] *= 0.5;
 //  }
-  for (int i = 0; i < number_of_grid_X; ++i) {
-    binDensity[i][number_of_grid_Y-1] *= 2;
-  }
-  for (int i = 0; i < number_of_grid_Y; ++i) {
-    binDensity[number_of_grid_X-1][i] *= 2;
-  }
+  // for (int i = 0; i < number_of_grid_X; ++i) {
+  //   binDensity[i][number_of_grid_Y-1] *= 2;
+  // }
+  // for (int i = 0; i < number_of_grid_Y; ++i) {
+  //   binDensity[number_of_grid_X-1][i] *= 2;
+  // }
 
-  for (int i = 0; i < number_of_grid_X; ++i) {
-    for (int j = 0; j < number_of_grid_Y; ++j) {
-      binDensity[i][j] *= 4.0 /number_of_grid_X / number_of_grid_Y;
-    }
-  }
+  // for (int i = 0; i < number_of_grid_X; ++i) {
+  //   for (int j = 0; j < number_of_grid_Y; ++j) {
+  //     binDensity[i][j] *= 4.0 /number_of_grid_X / number_of_grid_Y;
+  //   }
+  // }
   for (int i = 0; i < number_of_grid_X; i++) {
     float wx_ = wx[i];
     float wx2 = wx_sq[i];
@@ -708,11 +700,10 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
     int instNum = instMap.find(inst->getName())->second;
     if(inst->isFiller) {
       double gradDenX = lambda * ((double) inst->getArea() * inst->densityForce.first);
-
       double gradDenY = lambda * ((double) inst->getArea() * inst->densityForce.second);
 
-      gradX[instNum] = - 5e-9 * gradDenX;
-      gradY[instNum] = - 5e-9 * gradDenY;
+      gradX[instNum] = - gradDenX;
+      gradY[instNum] = - gradDenY;
       continue;
     }
     float gradInstX = 0.0, gradInstY = 0.0;
@@ -720,10 +711,10 @@ void Circuit::calcGradient(vector<float> &gradX, vector<float> &gradY, float lam
       gradInstX += pin->gradWAX;
       gradInstY += pin->gradWAY;
     }
-    double gradDenX = lambda * ((double) inst->getArea() * inst->densityForce.first);
-    double gradDenY = lambda * ((double) inst->getArea() * inst->densityForce.second);
-    gradX[instNum] = 3e-7 * gradInstX - 1e-10 * gradDenX;
-    gradY[instNum] = 3e-7 * gradInstY - 1e-10 * gradDenY;
+    double gradDenX = (double) inst->getArea() * inst->densityForce.first;
+    double gradDenY =  (double) inst->getArea() * inst->densityForce.second;
+    gradX[instNum] = - gradInstX - lambda * gradDenX;
+    gradY[instNum] = - gradInstY - lambda * gradDenY;
   }
 //  cout << absSumX << " : " << absSumY << endl;
 //  cout<<"END"<<endl;
@@ -733,16 +724,10 @@ bool Circuit::densityCheck(float normal_bin_width, float normal_bin_height) {
   int die_width = die_->getWidth();
   int die_height = die_->getHeight();
 
-  // Bin & inst update
-  vector<vector<Bin>> bins2D;
   for (int i = 0; i <= number_of_grid_X; ++i) {
-    vector<Bin> bins1D;
     for (int j = 0; j <= number_of_grid_Y; ++j) {
-      pair<int, int> lower_left{i * normal_bin_width, j * normal_bin_height};
-      pair<int, int> upper_right{(i + 1) * normal_bin_width, (j + 1) * normal_bin_height};
-      bins1D.emplace_back(static_cast<int>(die_width * die_height), lower_left, upper_right);
+      bins2D[i][j].reset();
     }
-    bins2D.push_back(bins1D);
   }
   // get utility in each bins
   for (Instance *instance : instance_pointers_) {
@@ -794,13 +779,11 @@ void Circuit::myPlacement() {
 
   // Give ID to instances
   int instCnt = 0;
-  vector<int> fillerID;
-  fillerID.resize(cntFC);
   int fillerCnt = 0;
+  int type = 0;
 //  cout << "Start"<<endl;
   for (auto &inst : instance_pointers_) {
     // cout << inst->name_ <<endl;
-    if (inst->isFiller) fillerID[fillerCnt++] = instCnt;
     instMap.insert(make_pair(inst->getName(), instCnt++));
   }
 //  cout << "giveID";
@@ -825,6 +808,21 @@ void Circuit::myPlacement() {
   vector<float> gradX(instance_pointers_.size());
   vector<float> gradY(instance_pointers_.size());
 
+  if(instance_pointers_.size() <= 47512) {
+    type = 2;
+  }
+  else if(instance_pointers_.size() <= 142136) {
+    type = 1;
+  }
+  else if(instance_pointers_.size() <= 192911) {
+    type = 4;
+  }
+  else if(instance_pointers_.size() <= 292190) {
+    type = 3;
+  }
+  else {
+    type = 5;
+  }
   for (auto &inst : instance_pointers_) {
     int instNum = instMap.find(inst->getName())->second;
     pair<int, int> coordinate = inst->getCoordinate();
@@ -838,43 +836,46 @@ void Circuit::myPlacement() {
     uY[instNum] = coordinate.second - 10;
   }
   long long prevHPWL = 0, HPWL = 0;
-  prevHPWL = 0;
-  for (Net *net : net_pointers_) {
-    prevHPWL += (long long) net->getHPWL();
-  }
-  cout << "INIT iter -1 " << " HPWL : " << prevHPWL <<endl;
-
-  // cout << "start"<<endl;
-  int ForceDirectCNT = 3;
+  cout << "start"<<endl;
+  int ForceDirectCNT = 20;
   for (int i = 0; i < ForceDirectCNT; ++i) {
-    vector<float> uX_hat(instance_pointers_.size()), uY_hat(instance_pointers_.size());
-    vector<float> vX_hat(instance_pointers_.size()), vY_hat(instance_pointers_.size());
+    vector<float> vX_hat(vX), vY_hat(vY);
     initialPlacement(gradX, gradY);
-    for (int i = 0; i < vX_hat.size(); i++) {
-      vX_hat[i] = vX[i] - 1e5 * gradX[i];
-      vY_hat[i] = vY[i] - 1e5 * gradY[i];
+    for (auto &inst : instance_pointers_) {
+      if(inst->isFiller) continue;
+      int instNum = instMap.find(inst->getName())->second;
+      vX_hat[instNum] = clamp(vX[instNum] - 1e5 * gradX[instNum], (number_of_grid_X/2 - 3) * normal_bin_width, (number_of_grid_X/2 + 2) * normal_bin_width);
+      vY_hat[instNum] = clamp(vY[instNum] - 1e5 * gradY[instNum], (number_of_grid_Y/2 - 3) * normal_bin_height, (number_of_grid_Y/2 + 3) * normal_bin_height);
     }
+    
     placeMap(vX_hat, vY_hat);
     prevHPWL = 0;
     for (Net *net : net_pointers_) {
       prevHPWL += (long long) net->getHPWL();
     }
     cout << "INIT iter " << i << " HPWL : " << prevHPWL <<endl;
-    string img_file_name = "initial" + to_string(i);
-    saveImg(img_file_name);
+    
     for (int i = 0; i < vX.size(); i++) {
       vX[i] = vX_hat[i];
       vY[i] = vY_hat[i];
     }
   }
+  string img_file_name = "initial";
+    saveImg(img_file_name);
+
   // Iterate until
   bool condition = true;
 
   int iter = 0;
-  float alpha_max = 0.01 * normal_bin_width;
-  float lambda_0 = initLambda();
+  
+  float alpha_max = 0.00001;
+  float lambda_0 = initLambda()*1e-2;
   float prev_a = 1.0;
-  float prev_alpha = 0.01 * normal_bin_width * 0.5;
+  float prev_alpha = 0.00001 * 0.5;
+  if(instance_pointers_.size() <= 142136) {
+    alpha_max = 0.0001;
+    prev_alpha = 0.0001 * 0.5;
+  }
   cout << "Init Lambda " << lambda_0 << endl;
 
   float prev_lambda = lambda_0;
@@ -892,12 +893,12 @@ void Circuit::myPlacement() {
     float mew = 1.1;
     float diff_ = 1.0 - (float) (HPWL - prevHPWL) / 3.5e5;
     // cout << HPWL << " " << prevHPWL<< " " << diff_<< endl;
-    if (diff_ <= -3.1) mew = 0.75;
-    else if (diff_ >= 1) mew = 1.1;
+    if (diff_ <= -1.5) mew = 0.99;
+    else if (diff_ >= 1) mew = 1.01;
     else {
-      mew = clamp(pow(mew_0, diff_), 0.75, 1.1);
+      mew = clamp(pow(mew_0, diff_), 0.99, 1.01);
     }
-    float lambda = mew * prev_lambda;
+    float lambda = maxClamp(mew * prev_lambda, 1e1);
 
     prevHPWL = HPWL;
     prev_lambda = lambda;
@@ -919,15 +920,23 @@ void Circuit::myPlacement() {
     float alpha_hat = calcAlphaHat(vX, vY, prev_vX, prev_vY, gradX, gradY, prev_gradX, prev_gradY);
 
     float epsilon = 0.95f;
-    float alpha_k_max = max(alpha_max, 2 * prev_alpha);
+    float alpha_k_max = max(1.0*alpha_max, 1.1 * prev_alpha);
+    alpha_k_max = maxClamp(alpha_k_max, 10.0*alpha_max);
     float next_ak;
 
     vector<float> uX_hat(instance_pointers_.size()), uY_hat(instance_pointers_.size());
     vector<float> vX_hat(instance_pointers_.size()), vY_hat(instance_pointers_.size());
 
-    for (int i = 0; i < vX_hat.size(); i++) {
-      vX_hat[i] = vX[i] + (-alpha_hat) * gradX[i];
-      vY_hat[i] = vY[i] + (-alpha_hat) * gradY[i];
+    for (auto &inst : instance_pointers_) {
+      int instNum = instMap.find(inst->getName())->second;
+      if(inst->isFiller && iter < 3) {
+        vX_hat[instNum] = vX[instNum] + (-alpha_hat) * 5 * gradX[instNum];
+        vY_hat[instNum] = vY[instNum] + (-alpha_hat) * 5 * gradY[instNum];
+      }
+      else {
+        vX_hat[instNum] = vX[instNum] + (-alpha_hat) * gradX[instNum];
+        vY_hat[instNum] = vY[instNum] + (-alpha_hat) * gradY[instNum];
+      }
     }
     placeMap(vX_hat, vY_hat);
 
@@ -940,9 +949,16 @@ void Circuit::myPlacement() {
       wi++;
       alpha_hat = next_ak;
 
-      for (int i = 0; i < vX_hat.size(); i++) {
-        vX_hat[i] = vX[i] + (-alpha_hat) * gradX[i];
-        vY_hat[i] = vY[i] + (-alpha_hat) * gradY[i];
+      for (auto &inst : instance_pointers_) {
+        int instNum = instMap.find(inst->getName())->second;
+        if(inst->isFiller && iter < 10) {
+          vX_hat[instNum] = vX[instNum] + (-alpha_hat) * 5 * gradX[instNum];
+          vY_hat[instNum] = vY[instNum] + (-alpha_hat) * 5 * gradY[instNum];
+        }
+        else {
+          vX_hat[instNum] = vX[instNum] + (-alpha_hat) * gradX[instNum];
+          vY_hat[instNum] = vY[instNum] + (-alpha_hat) * gradY[instNum];
+        }
       }
       placeMap(vX_hat, vY_hat);
 
@@ -957,12 +973,24 @@ void Circuit::myPlacement() {
       }
       // cout << "WHILE " << alpha_hat << " : " << epsilon * next_ak << endl;
     }
-    alpha_hat = clamp(alpha_hat, 0.01f * alpha_k_max, alpha_k_max);
+    if(isnan(alpha_hat) != 0) alpha_hat = alpha_k_max;
 
+    alpha_hat = clamp(alpha_hat, 0.01f * alpha_k_max, alpha_k_max);
+    cout<<"STEP " << alpha_hat<< "Lambda " << lambda << " : ";
     // Nestrov
     for (int i = 0; i < uX.size(); i++) {
-      uX_hat[i] = vX[i] + (-alpha_hat) * gradX[i];
-      uY_hat[i] = vY[i] + (-alpha_hat) * gradY[i];
+      
+    }
+    for (auto &inst : instance_pointers_) {
+      int instNum = instMap.find(inst->getName())->second;
+      if(inst->isFiller && iter < 10) {
+        uX_hat[instNum] = vX[instNum] + (-alpha_hat) * 5 * gradX[instNum];
+        uY_hat[instNum] = vY[instNum] + (-alpha_hat) * 5 * gradY[instNum];
+      }
+      else {
+        uX_hat[instNum] = vX[instNum] + (-alpha_hat) * gradX[instNum];
+        uY_hat[instNum] = vY[instNum] + (-alpha_hat) * gradY[instNum];
+      }
     }
     float next_a = (1 + sqrt(4 * prev_a * prev_a + 1)) / 2.0;
     for (int i = 0; i < vX.size(); i++) {
@@ -996,15 +1024,109 @@ void Circuit::myPlacement() {
 
     condition = densityCheck(normal_bin_width, normal_bin_height);
 
-    if (iter % 1 == 0) {
+    if (iter % 5 == 0) {
       cout << "iter " << iter << " HPWL : " << HPWL << "\tTIME : " << tresult << endl;
       string img_file_name = "result" + to_string(iter);
       saveImg(img_file_name);
     }
+    if(instance_pointers_.size() <= 47512) {
+      if(iter == 60) break;
+    }
+    else if(instance_pointers_.size() <= 142136) {
+      if(iter == 85) break;
+    }
+    else if(instance_pointers_.size() <= 192911) {
+      if(iter == 10) break;
+    }
+    else if(instance_pointers_.size() <= 292190) {
+      if(iter == 130) break;
+    }
+    else {
+      if(iter == 10) break;      
+    }
     iter++;
   }
-//  for(auto &id : fillerID) {
-//    instance_pointers_.erase(instance_pointers_.begin()+id);
-//  }
+
+  //After
+  int afterForceDirectCNT = 3;
+  for (int i = 0; i < afterForceDirectCNT; ++i) {
+    vector<float> vX_hat(vX), vY_hat(vY);
+    initialPlacement(gradX, gradY);
+    for (auto &inst : instance_pointers_) {
+      if(inst->isFiller) continue;
+      int instNum = instMap.find(inst->getName())->second;
+      vX_hat[instNum] = clamp(vX[instNum] - 1e5 * gradX[instNum], (number_of_grid_X/2 - 3) * normal_bin_width, (number_of_grid_X/2 + 2) * normal_bin_width);
+      vY_hat[instNum] = clamp(vY[instNum] - 1e5 * gradY[instNum], (number_of_grid_Y/2 - 3) * normal_bin_height, (number_of_grid_Y/2 + 3) * normal_bin_height);
+    }
+    
+    placeMap(vX_hat, vY_hat);
+    prevHPWL = 0;
+    for (Net *net : net_pointers_) {
+      prevHPWL += (long long) net->getHPWL();
+    }
+    cout << "After iter " << i << " HPWL : " << prevHPWL <<endl;
+    
+    for (int i = 0; i < vX.size(); i++) {
+      vX[i] = vX_hat[i];
+      vY[i] = vY_hat[i];
+    }
+  }
+
+  vector<vector<Bin> > bins2D_;
+
+  int number_of_grid_X_ = 40;
+  int number_of_grid_Y_ = 40;
+  normal_bin_width = (float)die_width / number_of_grid_X_;
+  normal_bin_height = (float)die_height / number_of_grid_Y_;
+  for (int i = 0; i <= number_of_grid_X_; ++i) {
+    vector<Bin> bins1D;
+    for (int j = 0; j <= number_of_grid_Y_; ++j) {
+      pair<int, int> lower_left{i * normal_bin_width, j * normal_bin_height};
+      pair<int, int> upper_right{(i + 1) * normal_bin_width, (j + 1) * normal_bin_height};
+      bins1D.emplace_back(floor(normal_bin_width) * floor(normal_bin_height), lower_left, upper_right);
+    }
+    bins2D_.push_back(bins1D);
+  }
+  for (int i = 0; i <= number_of_grid_X_; ++i) {
+    for (int j = 0; j <= number_of_grid_Y_; ++j) {
+      bins2D_[i][j].reset();
+    }
+  }
+  // get utility in each bins
+  vector<Instance *> tempInst;
+  priority_queue<Instance *, vector<Instance *>, cmp> pq_overlappedInstance;
+
+  for (Instance *instance : instance_pointers_) {
+    if(instance->isFiller) {
+      instance->setCoordinate(0,0);
+      instance->fillerWidth = 0.0;
+      instance->fillerHeight = 0.0;
+      continue;
+    }
+    pq_overlappedInstance.push(instance);
+    tempInst.push_back(instance);
+    // data_mapping_.instances
+  }
+
+  int w = floor(sqrt(total_cell_area));
+  int startX = die_width/2 - w/2, startY = die_height/2 - w/2, dx = 0, dy = 0;
+
+  while(!pq_overlappedInstance.empty()) {
+    Instance *inst = pq_overlappedInstance.top();
+    pq_overlappedInstance.pop();
+    inst->setCoordinate(startX, startY);
+    startX += 0.90 * inst->getWidth();
+    if(startX >= die_width/2 + w/2) {
+      startX = die_width/2 - w/2;
+      startY += inst->getHeight();
+    }
+  }
+
+  cout<<instance_pointers_.size()<<endl;
+  instance_pointers_ = tempInst;
+  cout<<instance_pointers_.size()<<endl;
+
+  img_file_name = "Final_result";
+  saveImg(img_file_name);
 }
 }

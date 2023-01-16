@@ -93,6 +93,7 @@ void Instance::setCoordinate(int x, int y) {
   }
 }
 bool Instance::isPlaced() {
+  if(isFiller) return true;
   if (db_inst_->getPlacementStatus() == odb::dbPlacementStatus::PLACED) {
     return true;
   } else if (db_inst_->getPlacementStatus() == odb::dbPlacementStatus::NONE) {

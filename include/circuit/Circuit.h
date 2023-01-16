@@ -38,6 +38,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <random>
+#include <queue>
 #include "Parser.h"
 #include "Instance.h"
 #include "Net.h"
@@ -46,6 +47,20 @@
 
 namespace Placer {
 using namespace odb;
+
+struct cmp {
+bool operator()(Instance* &a, Instance* &b) {
+  pair<int, int> aC = a->getCoordinate();
+  pair<int, int> bC = b->getCoordinate();
+  if (aC.second == bC.second) {
+      return aC.first < bC.first;
+  }
+  else {
+      return aC.second < bC.second;
+  }
+}
+};
+
 class Bin {
  public:
   Bin() = default;
@@ -93,16 +108,19 @@ class Bin {
     electricPotential = 0.0;
     electricField_x = 0.0;
     electricField_y = 0.0;
-    overlappedInstance.clear();
+    overlappedInstance.clear();    
   }
-  void getOverlapArea(Instance *instance) {
+
+  void getOverlapArea(Instance *instance) {    
     if (bin_area_ == 0) {
       assert(0);
     } else {
+      int bin_width = upper_right_.first - lower_left_.first;
+      
       pair<int, int> instance_lower_left = instance->getCoordinate();
       pair<int, int> instance_upper_right;
-      int bin_width = upper_right_.first - lower_left_.first;
       float densityX = 1.0;
+
       if (instance->getWidth() >= bin_width) {
         instance_upper_right = make_pair(instance_lower_left.first + instance->getWidth(),
                                          instance_lower_left.second + instance->getHeight());
@@ -111,21 +129,24 @@ class Bin {
             make_pair(instance_lower_left.first + bin_width, instance_lower_left.second + instance->getHeight());
         density = (float) instance->getWidth() / bin_width;
       }
-      if (instance_upper_right.first <= lower_left_.first) {
+      int rectLx = max(this->lower_left_.first, instance_lower_left.first);
+      int rectLy = max(this->lower_left_.second, instance_lower_left.second);
+      int rectUx = min(this->upper_right_.first, instance_upper_right.first);
+      int rectUy = min(this->upper_right_.second, instance_upper_right.second);
+
+      int overlapWidth = rectUx - rectLx;
+      int overlapHeight = rectUy - rectLy;
+
+      if (overlapWidth < 0 || overlapHeight < 0) {
         return;
-      } else if (instance_upper_right.second <= lower_left_.second) {
-        return;
-      } else if (instance_lower_left.first >= upper_right_.first) {
-        return;
-      } else if (instance_lower_left.second >= upper_right_.second) {
-        return;
-      } else {
-        float dx = (float) instance_upper_right.first - (float) lower_left_.first;
-        float dy = (float) instance_upper_right.second - (float) lower_left_.second;
-        float overlapArea = dx * dy * density;
-        overlappedInstance.push_back(make_pair(instance, overlapArea));
-        if (instance->isFiller) fillerArea += overlapArea;
-        else stdArea += overlapArea;
+      }
+      float cell_area_ = (float)(rectUx - rectLx) * (rectUy - rectLy);
+      
+      float overlapArea = cell_area_ * density;
+      overlappedInstance.push_back(make_pair(instance, overlapArea));
+      if (instance->isFiller) fillerArea += overlapArea;
+      else {
+        stdArea += overlapArea;
       }
     }
   }

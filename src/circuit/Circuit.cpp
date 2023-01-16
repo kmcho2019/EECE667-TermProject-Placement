@@ -112,6 +112,7 @@ void Circuit::init() {
     filler.name_ = name.c_str();
     filler.fillerWidth = widthFC;
     filler.fillerHeight = widthFC;
+    // if(floor(disX(genX)) >= 29 * normal_bin_width && )
     filler.setCoordinate(floor(disX(genX)), floor(disY(genY)));
     data_storage_.instances.push_back(filler);
   }
@@ -221,6 +222,10 @@ void Circuit::placeMap(vector<float> &vX, vector<float> &vY) {
     int instID = instMap.find(inst->getName())->second;
     int newX = clamp(int(vX[instID]), 0, (int) die_width - (int) inst->getWidth());
     int newY = clamp(int(vY[instID]), 0, (int) die_height - (int) inst->getHeight());
+    if(!inst->isFiller) {
+      newX = clamp(int(vX[instID]), (int)die_width/32, (int)die_width/16 * 15);
+      newY = clamp(int(vY[instID]), (int)die_height/32, (int)die_height/16 * 15);
+    }    
     inst->setCoordinate(newX, newY);
   }
 }

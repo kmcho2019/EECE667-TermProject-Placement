@@ -90,6 +90,7 @@ class Instance {
   uint getArea();
 
   bool isFiller = false;
+  bool fillerFin = false;
   pair<int, int> fillerCoordinate;
   float fillerWidth = 0.0f;
   float fillerHeight = 0.0f;
