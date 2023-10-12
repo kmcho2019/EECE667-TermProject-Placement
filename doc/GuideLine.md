@@ -32,6 +32,8 @@ you will get an F grade for this course.
 
 The assignment that you should implement are two things; `Quadratic Placement` and `Your own placement`.
 
+**Due: 2023/11/12**
+
 ### 1. Quadratic Placement (30pt)
 
 This is about what you learned in `Placement` Chapter of the class.
@@ -197,7 +199,7 @@ void solve_example() {
 First, you should make the A matrix. When make A matrix, consider the hyper graph as the clique graph like below for
 more easy implementation.
 
-<img src="https://tva1.sinaimg.cn/large/008vxvgGgy1h7xy9phkfaj30wx0e5jsi.jpg" alt="ClipboardImage_2023-11-08_203527" style="zoom:50%;" />
+<img src="https://tva1.sinaimg.cn/large/008vxvgGgy1h7xy9phkfaj30wx0e5jsi.jpg" alt="ClipboardImage_2022-11-08_203527" style="zoom:50%;" />
 
 If you encounter difficult even after analyzing the example code, then please raise your question in `PLMS`.
 
@@ -399,8 +401,6 @@ program (and also examined by TA), then you will get an F grade in this course, 
 
 ### 1. Quadratic Placement (30pt)
 
-**Due: 2023/11/22**
-
 This part will be graded by HPWL value.
 
 If the HPWL value is the same as the Quadratic placer implemented by TA, then you will be a full score in this part. (each benchmarks has 6 points)
@@ -436,8 +436,6 @@ For example,
 Then you can the HPWL value and do basic evaluation.
 
 ### 2. Your Own Placement (70pt)
-
-**Due: 2023/12/11**
 
 The grading considers `HPWL` value and `cell density` for routability.
 
