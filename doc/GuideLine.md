@@ -30,7 +30,7 @@ you will get an F grade for this course.
 
 ## Introduction
 
-The parts that you should implement are two things; `Quadratic Placement` and `Your own placement`.
+The assignment that you should implement are two things; `Quadratic Placement` and `Your own placement`.
 
 ### 1. Quadratic Placement (30pt)
 
