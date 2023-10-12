@@ -1,6 +1,6 @@
 # Term Project GuideLine
 
-EECE667 2022 Fall Term Project in POSTECH
+EECE667 2023 Fall Term Project in POSTECH
 
 **Contents**
 
@@ -61,10 +61,10 @@ ssh -p 5900 <yourID>@class.postech.ac.kr -Y
  For example,
 
 ```shell
-ssh -p 5900 22EE66700@class.postech.ac.kr -Y
+ssh -p 5900 23EE66700@class.postech.ac.kr -Y
 ```
 
-You ID and PW will be given through `PLMS`. After access to the class server through your account, you should change your password by [below command](https://www.cyberciti.biz/faq/linux-set-change-password-how-to/).
+You ID and PW will be given through `CLASS`. After access to the class server through your account, you should change your password by [below command](https://www.cyberciti.biz/faq/linux-set-change-password-how-to/).
 
 ```shell
 passwd
@@ -73,7 +73,7 @@ passwd
 After access the server, copy the file and unzip.
 
 ```shell
-cp ../22EE66700/TermProject.zip .
+cp ../23EE66700/TermProject.zip .
 unzip TermProject.zip
 cd TermProject
 ```
@@ -189,9 +189,9 @@ void solve_example() {
 First, you should make the A matrix. When make A matrix, consider the hyper graph as the clique graph like below for
 more easy implementation.
 
-<img src="https://tva1.sinaimg.cn/large/008vxvgGgy1h7xy9phkfaj30wx0e5jsi.jpg" alt="ClipboardImage_2022-11-08_203527" style="zoom:50%;" />
+<img src="https://tva1.sinaimg.cn/large/008vxvgGgy1h7xy9phkfaj30wx0e5jsi.jpg" alt="ClipboardImage_2023-11-08_203527" style="zoom:50%;" />
 
-If you encounter difficult even after analyzing the example code, then please raise your question in `piazza`.
+If you encounter difficult even after analyzing the example code, then please raise your question in `PLMS`.
 
 #### How to Build
 
@@ -221,7 +221,7 @@ The algorithm can be from any journal or paper, text book, or your own idea.
 If you use another idea from outside of your own, then annotate on the code where the idea is from.
 
 You can use external libraries, only for pure math (ex. `fft`, `matrix solver`, etc). If you want to use an external
-library, then please let TA know what you will use through `piazza`.
+library, then please let TA know what you will use.
 
 #### How to Build
 
@@ -371,7 +371,7 @@ In `include/dataStructures/Pin.h`
 
 You should read the comments in the header files so that completely understand and use these methods.
 
-If you have any questions, then feel free to post questions in the `piazza`.
+If you have any questions, then use PLMS board.
 
 
 
@@ -391,7 +391,7 @@ program (and also examined by TA), then you will get an F grade in this course, 
 
 ### 1. Quadratic Placement (30pt)
 
-**Due: 2022/11/22**
+**Due: 2023/11/22**
 
 This part will be graded by HPWL value.
 
@@ -429,7 +429,7 @@ Then you can the HPWL value and do basic evaluation.
 
 ### 2. Your Own Placement (70pt)
 
-**Due: 2022/12/11**
+**Due: 2023/12/11**
 
 The grading considers `HPWL` value and `cell density` for routability.
 
@@ -514,7 +514,7 @@ The very brief report needs to be in `doc` directory.
 
 ## TA Contact
 
-Please get in touch with me through `Piazza`.
+Please get in touch with me through `PLMS`.
 
 ## License
 
