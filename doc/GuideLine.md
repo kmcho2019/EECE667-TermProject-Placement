@@ -50,9 +50,11 @@ the `University of Illinois/NCSA`.
 In this part, you have to implement your own placement. The algorithm can be from your own idea, any journal, paper, or
 textbook. If you use other ideas from outside of your own, then annotate where the idea is from on the code.
 
+## 0. Preliminaries
+
 ### How To Set The Env?
 
-In the `mobaXTerm` or `Terminal`, enter the below command to access class server of POSTECH.
+In the `mobaXTerm`, `xshell` or `Terminal`, enter the below command to access class server of POSTECH.
 
 ```shell
 ssh -p 5900 <yourID>@class.postech.ac.kr -Y
@@ -78,7 +80,13 @@ unzip TermProject.zip
 cd TermProject
 ```
 
-And for build the project, you should load `gcc`, `cmake`, and `swig`.
+And for build the project, you should load `gcc`, `cmake`, and `swig`. 
+Do
+```shell
+source tool.env
+```
+
+or
 
 ```shell
 module load cmake/3.22.2 
@@ -103,7 +111,7 @@ make
 
 <div style="page-break-after: always; break-after: page;"></div>
 
-## Code Implementation
+## Assignment
 
 1. **You should submit very brief your own reports about your own code. **
    **This will not affect on your score, but only be refered for preventing plagiarism.**
