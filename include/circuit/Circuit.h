@@ -189,7 +189,7 @@ class Circuit {
   /// \details
   /// It saves the picture for the cells, pads, and nets in the circuit,
   /// in the output/images/file_name.png
-  void saveImg(const string &file_name);
+  void saveImg(const string &output_path_name, const string &file_name);
 
   /// \brief
   /// return the HPWL of the total circuit
