@@ -163,8 +163,7 @@ void Circuit::quadraticPlacement() {
 			std::vector<std::list<std::pair<int, int>>> local_adjacency_list(num_instances);
 			std::vector<int> local_pad_wire_weights(num_instances, 0);
 
-			#pragma omp for nowait
-			{
+				#pragma omp for nowait
 				for (int idx = 0; idx < num_instances; idx++)
 				{
 					Instance *instance = instance_pointers_[idx];
@@ -244,7 +243,7 @@ void Circuit::quadraticPlacement() {
 					}
 
 				}
-			}
+			
 
 			// Critical section for merging results
 			#pragma omp critical
