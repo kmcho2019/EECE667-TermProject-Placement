@@ -137,10 +137,13 @@ void Circuit::quadraticPlacement() {
 	 * reference system across the data structure.
 	 */
 	std::vector<std::list<std::pair<int, int>>> adjacency_list(instance_pointers_.size());
-	cout << "flag2" << endl;
-
+	// Create data structure to store the weight of pad wire for each instance
+	std::vector<int> pad_wire_weights(instance_pointers_.size(), 0);
+	std::cout << "flag2" << endl;
+	int test_idx = 0;
 
 	// Initiate the adjacency list with the number of instances in the circuit
+	// Also initiate the weight of pad wire for each instance
 	// Checking structure:
 	// instance -> pin -> net -> pin -> instance
 	for (Instance *instance : instance_pointers_)
@@ -155,9 +158,11 @@ void Circuit::quadraticPlacement() {
 		{
 			continue;
 		}
-		int instance_index = instance_manager.getIndexByName(instance->getName());
+		// int instance_index = instance_manager.getIndexByName(instance->getName());
+		int instance_index = test_idx;
 		//std::cout << instance->getName() << endl;
-
+		// std::cout << "instance_index: " << instance_index << " Test Index" << test_idx << endl;
+		// assert (instance_index == test_idx);
 		// Temporary map to store connections and their cumulative weights
     	std::unordered_map<int, int> connection_weights;
 		for (Pin *pin : instance->getPins())
@@ -181,6 +186,10 @@ void Circuit::quadraticPlacement() {
 			// Iterate through the pins connected to the net
 			for (Pin *connected_pin: net ->getConnectedPins())
 			{
+				if (!connected_pin)
+				{
+					continue;
+				}
 				// Check if the connected_pin is connected to an instance
 				if(connected_pin-> getInstance())
 				{
@@ -202,6 +211,12 @@ void Circuit::quadraticPlacement() {
 					adjacency_list[instance_manager.getIndexByName(instance->getName())].push_back(std::make_pair(connected_instance_index, current_net_weight));
 					*/
 				}
+				// Check if the connected_pin is a block pin (pad)
+				if (connected_pin->isBlockPin())
+				{
+					// Accumulate net weight for block pins
+					pad_wire_weights[instance_index] += current_net_weight;
+				}
 			}
 		}
 		// Add the accumulated connections to the adjacency list
@@ -209,43 +224,11 @@ void Circuit::quadraticPlacement() {
 		{
 			adjacency_list[instance_index].push_back(connection);
 		}
+		test_idx++;
 	}
-	cout << "flag3" << endl;
+	std::cout << "flag3" << endl;
 	//cout << endl;
 
-
-	// Create data structure to store the weight of pad wire for each instance
-	std::vector<int> pad_wire_weights(instance_pointers_.size(), 0);
-	for (Instance *instance: instance_pointers_)
-	{
-		if (!instance)
-		{
-			continue;
-		}
-		int instance_index = instance_manager.getIndexByName(instance->getName());
-		for (Pin *pin : instance->getPins())
-		{
-			if (!pin)
-			{
-				continue;
-			}
-			Net *net = pin->getNet();
-			if (!net)
-			{
-				continue;
-			}
-			int current_net_weight = net->getWeight();
-			for (Pin *connected_pin: net->getConnectedPins())
-			{
-				// Check if the connected_pin is a block pin
-				if (connected_pin && connected_pin->isBlockPin())
-				{
-					// Accumulate net weight for block pins
-					pad_wire_weights[instance_index] += current_net_weight;
-				}
-			}
-		}
-	}
 	// Using the adjacency list and the pad wire weights, populate the A matrix
 	// A matrix is where the ith diagonal is the sum of the weights of the connected pad nets that is connected to the ith instance and the sum of ith row of C matrix
 	// For off diagonal elements, the value is the negative of the C matrix
@@ -370,8 +353,19 @@ void Circuit::quadraticPlacement() {
 		x_vector[i] = (double) random() / (double) RAND_MAX;
 		y_vector[i] = (double) random() / (double) RAND_MAX;
 	}
+
+	std::cout << "flag6: before matrix solve" << std::endl;
+
+
 	A_matrix.solve(bx_vector, x_vector);
+
+	std::cout << "flag7: x solved" << std::endl;
+
+
 	A_matrix.solve(by_vector, y_vector);
+
+	std::cout << "flag8: y solved" << std::endl;
+
 
 	// Set Coordinate (place) each instance/cell
 	int die_width = die_->getWidth();
