@@ -136,6 +136,14 @@ void Circuit::quadraticPlacement() {
 	 * corresponds to the index number of the instance in the 'instance_pointers_' vector, maintaining a consistent
 	 * reference system across the data structure.
 	 */
+
+	const int INSTANCE_THRESHOLD = 1000; // Threshold for parallelization
+	const int MAX_THREADS = 32; // Maximum number of threads
+
+	omp_set_num_threads(MAX_THREADS); // Set max threads for large data size
+
+	int num_instances = instance_pointers_.size();
+
 	std::vector<std::list<std::pair<int, int>>> adjacency_list(instance_pointers_.size());
 	// Create data structure to store the weight of pad wire for each instance
 	std::vector<int> pad_wire_weights(instance_pointers_.size(), 0);
@@ -146,93 +154,203 @@ void Circuit::quadraticPlacement() {
 	// Also initiate the weight of pad wire for each instance
 	// Checking structure:
 	// instance -> pin -> net -> pin -> instance
-	for (Instance *instance : instance_pointers_)
+	// Conditionally use parallelism for the outer loop (instances)
+	if (num_instances > INSTANCE_THRESHOLD)
 	{
-		// Iterate through pins of instance
-		// From the pin get the corresponding net
-		// From the net get the connected instance and weight
-		// Use the information to update the adjacency list
-
-		// check if instance is nullptr
-		if (!instance)
+		#pragma omp parallel
 		{
-			continue;
-		}
-		// int instance_index = instance_manager.getIndexByName(instance->getName());
-		int instance_index = test_idx;
+			// privatization of variables for each thread, coalesced later
+			std::vector<std::list<std::pair<int, int>>> local_adjacency_list(num_instances);
+			std::vector<int> local_pad_wire_weights(num_instances, 0);
 
-		// Print out instance_index every 10000 instances to check on progress
-		if (instance_index % 10000 == 0)
-		{
-			std::cout << "instance_index: " << instance_index << std::endl;
-		}
-
-		//std::cout << instance->getName() << endl;
-		// std::cout << "instance_index: " << instance_index << " Test Index" << test_idx << endl;
-		// assert (instance_index == test_idx);
-		// Temporary map to store connections and their cumulative weights
-    	std::unordered_map<int, int> connection_weights;
-		for (Pin *pin : instance->getPins())
-		{
-			// check if pin is nullptr
-			if (!pin)
+			#pragma omp for nowait
 			{
-				continue;
-			}
-			//cout << "pin " << endl;
-			//cout << pin->getPinName() << endl;
-			// Get the net connected to the pin
-			Net *net = pin->getNet();
-			// If the net is not connected to anything, skip it
-			if (net == nullptr)
-			{
-				continue;
-			}
-			int current_net_weight = net->getWeight();
-
-			// Iterate through the pins connected to the net
-			for (Pin *connected_pin: net ->getConnectedPins())
-			{
-				if (!connected_pin)
+				for (int idx = 0; idx < num_instances; idx++)
 				{
-					continue;
-				}
-				// Check if the connected_pin is connected to an instance
-				if(connected_pin-> getInstance())
-				{
-					//cout << "connected_pin " << connected_pin->getPinName() << endl;
-					// Get the instance connected to the pin
-					Instance *connected_instance = connected_pin->getInstance();
-					// Skip self-pointing edges or edges to nullptr
-					if (!connected_instance || connected_instance == instance)
+					Instance *instance = instance_pointers_[idx];
+					int instance_index = idx;
+					// check if instance is nullptr
+					if (!instance)
 					{
 						continue;
 					}
-					// Get the index of the connected instance
-					int connected_instance_index = instance_manager.getIndexByName(connected_instance->getName());
 					
-					// Accumulate weights for duplicate connections
-					connection_weights[connected_instance_index] += current_net_weight;
-					/*
-					// Add the connection to the adjacency list
-					adjacency_list[instance_manager.getIndexByName(instance->getName())].push_back(std::make_pair(connected_instance_index, current_net_weight));
-					*/
-				}
-				// Check if the connected_pin is a block pin (pad)
-				if (connected_pin->isBlockPin())
-				{
-					// Accumulate net weight for block pins
-					pad_wire_weights[instance_index] += current_net_weight;
+					// Print out instance_index every 10000 instances to check on progress
+					if (idx % 10000 == 0)
+					{
+						std::cout << "instance_index: " << idx << std::endl;
+					}
+
+					// Temporary map to store connections and their cumulative weights
+					std::unordered_map<int, int> connection_weights;
+					for (Pin *pin : instance->getPins())
+					{
+						// check if pin is nullptr
+						if (!pin)
+						{
+							continue;
+						}
+						//cout << "pin " << endl;
+						//cout << pin->getPinName() << endl;
+						// Get the net connected to the pin
+						Net *net = pin->getNet();
+						// If the net is not connected to anything, skip it
+						if (net == nullptr)
+						{
+							continue;
+						}
+						int current_net_weight = net->getWeight();
+
+						// Iterate through the pins connected to the net
+						for (Pin *connected_pin: net ->getConnectedPins())
+						{
+							if (!connected_pin)
+							{
+								continue;
+							}
+							// Check if the connected_pin is connected to an instance
+							if(connected_pin-> getInstance())
+							{
+								//cout << "connected_pin " << connected_pin->getPinName() << endl;
+								// Get the instance connected to the pin
+								Instance *connected_instance = connected_pin->getInstance();
+								// Skip self-pointing edges or edges to nullptr
+								if (!connected_instance || connected_instance == instance)
+								{
+									continue;
+								}
+								// Get the index of the connected instance
+								int connected_instance_index = instance_manager.getIndexByName(connected_instance->getName());
+								
+								// Accumulate weights for duplicate connections
+								connection_weights[connected_instance_index] += current_net_weight;
+								/*
+								// Add the connection to the adjacency list
+								adjacency_list[instance_manager.getIndexByName(instance->getName())].push_back(std::make_pair(connected_instance_index, current_net_weight));
+								*/
+							}
+							// Check if the connected_pin is a block pin (pad)
+							if (connected_pin->isBlockPin())
+							{
+								// Accumulate net weight for block pins
+								local_pad_wire_weights[instance_index] += current_net_weight;
+							}
+						}
+					}
+					// Add the accumulated connections to the adjacency list
+					for (const std::pair<const int, int>& connection : connection_weights)
+					{
+						local_adjacency_list[instance_index].push_back(connection);
+					}
+
 				}
 			}
+
+			// Critical section for merging results
+			#pragma omp critical
+			{
+				for (int i = 0; i < num_instances; i++)
+				{
+					adjacency_list[i].insert(adjacency_list[i].end(), local_adjacency_list[i].begin(), local_adjacency_list[i].end());
+					pad_wire_weights[i] += local_pad_wire_weights[i];
+				}
+			}
+
+
 		}
-		// Add the accumulated connections to the adjacency list
-		for (const std::pair<const int, int>& connection : connection_weights)
-		{
-			adjacency_list[instance_index].push_back(connection);
-		}
-		test_idx++;
+
 	}
+	else	// Serial execution for a small number of instances
+	{
+		for (Instance *instance : instance_pointers_)
+		{
+			// Iterate through pins of instance
+			// From the pin get the corresponding net
+			// From the net get the connected instance and weight
+			// Use the information to update the adjacency list
+
+			// check if instance is nullptr
+			if (!instance)
+			{
+				continue;
+			}
+			// int instance_index = instance_manager.getIndexByName(instance->getName());
+			int instance_index = test_idx;
+
+			// Print out instance_index every 10000 instances to check on progress
+			if (instance_index % 10000 == 0)
+			{
+				std::cout << "instance_index: " << instance_index << std::endl;
+			}
+
+			//std::cout << instance->getName() << endl;
+			// std::cout << "instance_index: " << instance_index << " Test Index" << test_idx << endl;
+			// assert (instance_index == test_idx);
+			// Temporary map to store connections and their cumulative weights
+			std::unordered_map<int, int> connection_weights;
+			for (Pin *pin : instance->getPins())
+			{
+				// check if pin is nullptr
+				if (!pin)
+				{
+					continue;
+				}
+				//cout << "pin " << endl;
+				//cout << pin->getPinName() << endl;
+				// Get the net connected to the pin
+				Net *net = pin->getNet();
+				// If the net is not connected to anything, skip it
+				if (net == nullptr)
+				{
+					continue;
+				}
+				int current_net_weight = net->getWeight();
+
+				// Iterate through the pins connected to the net
+				for (Pin *connected_pin: net ->getConnectedPins())
+				{
+					if (!connected_pin)
+					{
+						continue;
+					}
+					// Check if the connected_pin is connected to an instance
+					if(connected_pin-> getInstance())
+					{
+						//cout << "connected_pin " << connected_pin->getPinName() << endl;
+						// Get the instance connected to the pin
+						Instance *connected_instance = connected_pin->getInstance();
+						// Skip self-pointing edges or edges to nullptr
+						if (!connected_instance || connected_instance == instance)
+						{
+							continue;
+						}
+						// Get the index of the connected instance
+						int connected_instance_index = instance_manager.getIndexByName(connected_instance->getName());
+						
+						// Accumulate weights for duplicate connections
+						connection_weights[connected_instance_index] += current_net_weight;
+						/*
+						// Add the connection to the adjacency list
+						adjacency_list[instance_manager.getIndexByName(instance->getName())].push_back(std::make_pair(connected_instance_index, current_net_weight));
+						*/
+					}
+					// Check if the connected_pin is a block pin (pad)
+					if (connected_pin->isBlockPin())
+					{
+						// Accumulate net weight for block pins
+						pad_wire_weights[instance_index] += current_net_weight;
+					}
+				}
+			}
+			// Add the accumulated connections to the adjacency list
+			for (const std::pair<const int, int>& connection : connection_weights)
+			{
+				adjacency_list[instance_index].push_back(connection);
+			}
+			test_idx++;
+		}
+	}
+
 	std::cout << "flag3" << endl;
 	//cout << endl;
 
@@ -471,8 +589,12 @@ for (Instance *instance : instance_pointers_) {
 
 
 */
+	saveImg("../output/qPlacer/", "FooImg");
+	write("../output/qPlacer/Foo.def");
+	
 	std::cout << "HPWL of placeExample: " << std::endl;
 	std::cout << this->getHPWL() << std::endl;
+
 
 
 
