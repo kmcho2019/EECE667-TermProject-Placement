@@ -45,6 +45,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
 #include <iostream>
 #include <fstream>
 #include <random>
+#include <omp.h>
 
 using namespace std;
 
