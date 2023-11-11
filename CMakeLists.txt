@@ -31,6 +31,9 @@ set(INCLUDE_DIRS
         ${PROJECT_SOURCE_DIR}/submodule/CImg
         )
 
+# Find OpenMP
+find_package(OpenMP)
+
 add_executable(placer src/main_placer.cpp ${SOURCES})
 add_executable(qPlacer src/main_qPlacer.cpp ${SOURCES})
 add_executable(evaluator src/main_evaluator.cpp ${SOURCES})
@@ -40,6 +43,13 @@ target_include_directories(qPlacer PRIVATE ${INCLUDE_DIRS})
 target_include_directories(evaluator PRIVATE ${INCLUDE_DIRS})
 
 add_subdirectory(submodule/OpenDB)
-target_link_libraries(placer PRIVATE opendb X11 pthread)
-target_link_libraries(qPlacer PRIVATE opendb X11 pthread)
-target_link_libraries(evaluator PRIVATE opendb X11 pthread)
+# Link OpenMP if available
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(placer PRIVATE OpenMP::OpenMP_CXX opendb X11 pthread)
+    target_link_libraries(qPlacer PRIVATE OpenMP::OpenMP_CXX opendb X11 pthread)
+    target_link_libraries(evaluator PRIVATE OpenMP::OpenMP_CXX opendb X11 pthread)
+else()
+    target_link_libraries(placer PRIVATE opendb X11 pthread)
+    target_link_libraries(qPlacer PRIVATE opendb X11 pthread)
+    target_link_libraries(evaluator PRIVATE opendb X11 pthread)
+endif()

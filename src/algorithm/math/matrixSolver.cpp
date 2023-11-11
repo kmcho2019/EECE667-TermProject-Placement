@@ -88,7 +88,9 @@ double dot(const valarray<double> &x, const valarray<double> &y) {
 
 void coo_matrix::matvec(const valarray<double> &x, valarray<double> &y) {
   y = 0.0; // need to reset to 0 first.
+  #pragma omp parallel for
   for (int i = 0; i < nnz; ++i) {
+    #pragma omp atomic
     y[row[i]] += dat[i] * x[col[i]];
   }
 }
@@ -117,25 +119,59 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
   int i;
   for (i = 0; i < maxit; ++i) {
     matvec(p, Ap);
-    alpha = rnormold / dot(p, Ap);
+
+    // use omp reduction rather than native dot product
+    double dot_p_Ap;
+    #pragma omp parallel for reduction(+:dot_p_Ap)
+    for (size_t j=0; j < n; j++)
+    {
+      dot_p_Ap += p[j] * Ap[j];
+    }
+    alpha = rnormold / dot_p_Ap;
+    //alpha = rnormold / dot(p, Ap);
 
     // p *= alpha;
-    x += alpha * p;
+
+    // Parallelize vector updates
+    #pragma omp parallel for
+    for (size_t j = 0; j < n; j++)
+    {
+      x[j] += alpha * p[j];
+      r[j] -= alpha * Ap[j];
+    }
+   // x += alpha * p;
 
     // Ap *= alpha;
-    r -= alpha * Ap;
+    //r -= alpha * Ap;
 
-    rnorm = dot(r, r);
+    double dot_r_r = 0;
+    #pragma omp parallel for reduction(+:dot_r_r)
+    for (size_t j = 0; j < n; j++)
+    {
+      dot_r_r += r[j] * r[j];
+    }
+    rnorm = dot_r_r;
+
+    //rnorm = dot(r, r);
     if (sqrt(rnorm) < 1e-8) { break; }
 //    else {
 //      error = abs(dot(r, x));
 //      errorold = error;
 //    }
-
-    p *= (rnorm / rnormold);
-    p += r;
+    // Parallelize vector update
+    double beta = rnorm / rnormold;
+    #pragma omp parallel for
+    for (size_t j = 0; j < n; j++)
+    {
+      p[j] = r[j] + beta * p[j];
+    }
 
     rnormold = rnorm;
+
+    //p *= (rnorm / rnormold);
+    //p += r;
+
+    //rnormold = rnorm;
   }
 
   if (i == maxit)
