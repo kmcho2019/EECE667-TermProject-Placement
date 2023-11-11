@@ -109,7 +109,7 @@ double coo_matrix::dot(const valarray<double> &x, const valarray<double> &y)
 
 void coo_matrix::matvec(const valarray<double> &x, valarray<double> &y) {
   y = 0.0; // need to reset to 0 first.
-  const int SIZE_THRESHOLD = matrix_threshold; // Threshold for parallelization
+  const int NNZ_THRESHOLD = matrix_threshold; // Threshold for parallelization
   const int MAX_THREADS = matrix_max_num_threads; // Maximum number of threads
 
   if (nnz > NNZ_THRESHOLD) 
