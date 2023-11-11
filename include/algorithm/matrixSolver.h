@@ -59,8 +59,11 @@ class coo_matrix {
   valarray<double> dat;
 
   valarray<double> M_inv;  // Preconditioner storage
+  // Parallelization parameters
+  int matrix_threshold = 1000;
+  int matrix_max_num_threads = 32;
 
-
+  double dot(const valarray<double> &x, const valarray<double> &y);
   void matvec(const valarray<double> &x, valarray<double> &y);
   void solve(const valarray<double> &b, valarray<double> &x);
   void apply_preconditioner(const valarray<double> &r, valarray<double> &z);

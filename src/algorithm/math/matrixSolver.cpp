@@ -82,11 +82,11 @@ void solve_example() {
   print_valarray(x);
 }
 
-double dot(const valarray<double> &x, const valarray<double> &y) 
+double coo_matrix::dot(const valarray<double> &x, const valarray<double> &y) 
 {
   double result = 0.0;
-  const int SIZE_THRESHOLD = 1000; // Threshold for parallelization
-  const int MAX_THREADS = omp_get_max_threads(); // Maximum number of threads
+  const int SIZE_THRESHOLD = matrix_threshold; // Threshold for parallelization
+  const int MAX_THREADS = matrix_max_num_threads; // Maximum number of threads
 
   if (x.size() > SIZE_THRESHOLD) 
   {
@@ -109,8 +109,8 @@ double dot(const valarray<double> &x, const valarray<double> &y)
 
 void coo_matrix::matvec(const valarray<double> &x, valarray<double> &y) {
   y = 0.0; // need to reset to 0 first.
-  const int NNZ_THRESHOLD = 1000; // Threshold for parallelization
-  const int MAX_THREADS = 32; // Maximum number of threads
+  const int SIZE_THRESHOLD = matrix_threshold; // Threshold for parallelization
+  const int MAX_THREADS = matrix_max_num_threads; // Maximum number of threads
 
   if (nnz > NNZ_THRESHOLD) 
   {
@@ -153,8 +153,8 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
   p = z;  // Initial direction
   rnormold = dot(r, z);  // Parallelized dot product
 
-  const int SIZE_THRESHOLD = 1000; // Threshold for parallelization
-  const int MAX_THREADS = omp_get_max_threads(); // Maximum number of threads
+  const int SIZE_THRESHOLD = matrix_threshold; // Threshold for parallelization
+  const int MAX_THREADS = matrix_max_num_threads; // Maximum number of threads
 
   int i;
   // CG iteration
@@ -211,8 +211,8 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
 // Jacobi preconditioner
 void coo_matrix::apply_preconditioner(const valarray<double> &r, valarray<double> &z) 
 {
-  const int SIZE_THRESHOLD = 1000; // Threshold for parallelization
-  const int MAX_THREADS = omp_get_max_threads(); // Maximum number of threads
+  const int SIZE_THRESHOLD = matrix_threshold; // Threshold for parallelization
+  const int MAX_THREADS = matrix_max_num_threads; // Maximum number of threads
 
   if (n > SIZE_THRESHOLD) {
     omp_set_num_threads(MAX_THREADS); // Set max threads for large data size

@@ -423,6 +423,9 @@ void Circuit::quadraticPlacement() {
 	A_matrix.row = A_row;
 	A_matrix.col = A_col;
 	A_matrix.dat = A_dat;
+	// Change Parallelization parameters
+	A_matrix.matrix_threshold = INSTANCE_THRESHOLD;
+	A_matrix.matrix_max_num_threads = MAX_THREADS;
 
 	std::cout << "flag5" << std::endl;
 
@@ -591,7 +594,7 @@ for (Instance *instance : instance_pointers_) {
 */
 	saveImg("../output/qPlacer/", "FooImg");
 	write("../output/qPlacer/Foo.def");
-	
+
 	std::cout << "HPWL of placeExample: " << std::endl;
 	std::cout << this->getHPWL() << std::endl;
 
