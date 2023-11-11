@@ -160,6 +160,13 @@ void Circuit::quadraticPlacement() {
 		}
 		// int instance_index = instance_manager.getIndexByName(instance->getName());
 		int instance_index = test_idx;
+
+		// Print out instance_index every 10000 instances to check on progress
+		if (instance_index % 10000 == 0)
+		{
+			std::cout << "instance_index: " << instance_index << std::endl;
+		}
+
 		//std::cout << instance->getName() << endl;
 		// std::cout << "instance_index: " << instance_index << " Test Index" << test_idx << endl;
 		// assert (instance_index == test_idx);
