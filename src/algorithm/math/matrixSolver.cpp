@@ -82,8 +82,29 @@ void solve_example() {
   print_valarray(x);
 }
 
-double dot(const valarray<double> &x, const valarray<double> &y) {
-  return (x * y).sum();
+double dot(const valarray<double> &x, const valarray<double> &y) 
+{
+  double result = 0.0;
+  const int SIZE_THRESHOLD = 1000; // Threshold for parallelization
+  const int MAX_THREADS = omp_get_max_threads(); // Maximum number of threads
+
+  if (x.size() > SIZE_THRESHOLD) 
+  {
+    omp_set_num_threads(MAX_THREADS); // Set max threads for large data size
+    #pragma omp parallel for reduction(+:result)
+    for (size_t i = 0; i < x.size(); ++i) 
+    {
+      result += x[i] * y[i];
+    }
+  } else 
+  {
+    // Sequential for smaller size
+    for (size_t i = 0; i < x.size(); ++i) 
+    {
+      result += x[i] * y[i];
+    }
+  }
+  return result;
 }
 
 void coo_matrix::matvec(const valarray<double> &x, valarray<double> &y) {
@@ -109,47 +130,42 @@ void coo_matrix::matvec(const valarray<double> &x, valarray<double> &y) {
 }
 
 void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
-  // x = A^{-1} b with CG
-  // https://en.wikipedia.org/wiki/Conjugate_gradient#Example_code_in_Matlab
-
   int maxit = 10000;
   valarray<double> Ax(n);
   valarray<double> Ap(n);
   valarray<double> r(n);
+  valarray<double> z(n);  // Preconditioned residual
   valarray<double> p(n);
   double rnormold, alpha, rnorm;
 
+  // Initial guess for x
   for (size_t i = 0; i < x.size(); ++i) {
     x[i] = (double) random() / (double) RAND_MAX;
   }
 
+  // Initial residual r = b - Ax
   matvec(x, Ax);
   r = b - Ax;
-  p = r;
-  rnormold = dot(r, r);
+
+  // Apply preconditioner to initial residual
+  apply_preconditioner(r, z);  // Parallelized
+
+  p = z;  // Initial direction
+  rnormold = dot(r, z);  // Parallelized dot product
+
+  const int SIZE_THRESHOLD = 1000; // Threshold for parallelization
+  const int MAX_THREADS = omp_get_max_threads(); // Maximum number of threads
 
   int i;
-  const int SIZE_THRESHOLD = 1000; // Threshold for parallelization
-  const int MAX_THREADS = 32; // Maximum number of threads
-
+  // CG iteration
   for (i = 0; i < maxit; ++i) {
     matvec(p, Ap);
 
-    double dot_p_Ap = 0.0;
-    if (n > SIZE_THRESHOLD) {
-      omp_set_num_threads(MAX_THREADS); // Set max threads
-      #pragma omp parallel for reduction(+:dot_p_Ap)
-      for (size_t j = 0; j < n; j++) {
-        dot_p_Ap += p[j] * Ap[j];
-      }
-    } else {
-      for (size_t j = 0; j < n; j++) {
-        dot_p_Ap += p[j] * Ap[j];
-      }
-    }
+    double dot_p_Ap = dot(p, Ap);  // Parallelized dot product
     alpha = rnormold / dot_p_Ap;
 
-    omp_set_num_threads(MAX_THREADS); // Set max threads
+    // Parallel updates for x and r
+    omp_set_num_threads(MAX_THREADS);
     if (n > SIZE_THRESHOLD) {
       #pragma omp parallel for
       for (size_t j = 0; j < n; j++) {
@@ -163,38 +179,51 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
       }
     }
 
-    double dot_r_r = 0.0;
-    omp_set_num_threads(MAX_THREADS); // Set max threads
-    if (n > SIZE_THRESHOLD) {
-      #pragma omp parallel for reduction(+:dot_r_r)
-      for (size_t j = 0; j < n; j++) {
-        dot_r_r += r[j] * r[j];
-      }
-    } else {
-      for (size_t j = 0; j < n; j++) {
-        dot_r_r += r[j] * r[j];
-      }
-    }
-    rnorm = dot_r_r;
-
+    // Check for convergence
+    rnorm = sqrt(dot(r, r));  // Parallelized dot product
     if (sqrt(rnorm) < 1e-8) { break; }
 
-    double beta = rnorm / rnormold;
-    omp_set_num_threads(MAX_THREADS); // Set max threads
+    // Apply preconditioner to the residual
+    apply_preconditioner(r, z);  // Parallelized
+
+    double beta = dot(r, z) / rnormold;  // Parallelized dot product
+    rnormold = dot(r, z);  // Parallelized dot product
+
+    // Parallel update of direction
+    omp_set_num_threads(MAX_THREADS);
     if (n > SIZE_THRESHOLD) {
       #pragma omp parallel for
       for (size_t j = 0; j < n; j++) {
-        p[j] = r[j] + beta * p[j];
+        p[j] = z[j] + beta * p[j];
       }
     } else {
       for (size_t j = 0; j < n; j++) {
-        p[j] = r[j] + beta * p[j];
+        p[j] = z[j] + beta * p[j];
       }
     }
-
-    rnormold = rnorm;
   }
 
-  if (i == maxit)
-    cerr << "Warning: reaches maximum iteration." << endl;
+  if (i == maxit) {
+    cerr << "Warning: CG did not converge in " << maxit << " iterations." << endl;
+  }
+}
+
+// Jacobi preconditioner
+void coo_matrix::apply_preconditioner(const valarray<double> &r, valarray<double> &z) 
+{
+  const int SIZE_THRESHOLD = 1000; // Threshold for parallelization
+  const int MAX_THREADS = omp_get_max_threads(); // Maximum number of threads
+
+  if (n > SIZE_THRESHOLD) {
+    omp_set_num_threads(MAX_THREADS); // Set max threads for large data size
+    #pragma omp parallel for
+    for (size_t i = 0; i < n; ++i) {
+      z[i] = M_inv[i] * r[i];
+    }
+  } else {
+    // Sequential for smaller size
+    for (size_t i = 0; i < n; ++i) {
+      z[i] = M_inv[i] * r[i];
+    }
+  }
 }

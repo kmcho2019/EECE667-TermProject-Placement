@@ -58,8 +58,12 @@ class coo_matrix {
   valarray<int> col;
   valarray<double> dat;
 
+  valarray<double> M_inv;  // Preconditioner storage
+
+
   void matvec(const valarray<double> &x, valarray<double> &y);
   void solve(const valarray<double> &b, valarray<double> &x);
+  void apply_preconditioner(const valarray<double> &r, valarray<double> &z);
 };
 
 template<typename T>
