@@ -147,6 +147,13 @@ void Circuit::quadraticPlacement() {
 	std::vector<std::list<std::pair<int, int>>> adjacency_list(instance_pointers_.size());
 	// Create data structure to store the weight of pad wire for each instance
 	std::vector<int> pad_wire_weights(instance_pointers_.size(), 0);
+	// Create b vector
+	// bx vector:
+	// If gate i connects to a pad at (xi, yi) with a wire with weight wi,
+	// then set bx[i] = wi * xi
+	std::valarray<double> bx_vector(num_instances);
+	std::valarray<double> by_vector(num_instances);
+
 	std::cout << "flag2" << endl;
 	int test_idx = 0;
 
@@ -162,6 +169,8 @@ void Circuit::quadraticPlacement() {
 			// privatization of variables for each thread, coalesced later
 			std::vector<std::list<std::pair<int, int>>> local_adjacency_list(num_instances);
 			std::vector<int> local_pad_wire_weights(num_instances, 0);
+			std::valarray<double> local_bx_vector(0.0, num_instances);
+			std::valarray<double> local_by_vector(0.0, num_instances);
 
 				#pragma omp for nowait
 				for (int idx = 0; idx < num_instances; idx++)
@@ -233,7 +242,11 @@ void Circuit::quadraticPlacement() {
 							{
 								// Accumulate net weight for block pins
 								local_pad_wire_weights[instance_index] += current_net_weight;
-							}
+
+								std::pair<int, int> pin_coordinate = connected_pin->getCoordinate();
+								// Accumulate net weight * x/y coordinate for block pins
+								local_bx_vector[instance_index] += current_net_weight * pin_coordinate.first;
+								local_by_vector[instance_index] += current_net_weight * pin_coordinate.second;							}
 						}
 					}
 					// Add the accumulated connections to the adjacency list
@@ -252,6 +265,9 @@ void Circuit::quadraticPlacement() {
 				{
 					adjacency_list[i].insert(adjacency_list[i].end(), local_adjacency_list[i].begin(), local_adjacency_list[i].end());
 					pad_wire_weights[i] += local_pad_wire_weights[i];
+					bx_vector[i] += local_bx_vector[i];
+					by_vector[i] += local_by_vector[i];
+
 				}
 			}
 
@@ -338,6 +354,11 @@ void Circuit::quadraticPlacement() {
 					{
 						// Accumulate net weight for block pins
 						pad_wire_weights[instance_index] += current_net_weight;
+
+						std::pair<int, int> pin_coordinate = connected_pin->getCoordinate();
+						// Accumulate net weight * x/y coordinate for block pins
+						bx_vector[instance_index] += current_net_weight * pin_coordinate.first;
+						by_vector[instance_index] += current_net_weight * pin_coordinate.second;
 					}
 				}
 			}
@@ -430,48 +451,6 @@ void Circuit::quadraticPlacement() {
 
 	std::cout << "flag5" << std::endl;
 
-
-	// Create b vector
-	// bx vector:
-	// If gate i connects to a pad at (xi, yi) with a wire with weight wi,
-	// then set bx[i] = wi * xi
-	std::valarray<double> bx_vector(A_matrix.n);
-	std::valarray<double> by_vector(A_matrix.n);
-
-	for (Instance *instance: instance_pointers_)
-	{
-		if (!instance)
-		{
-			continue;
-		}
-		int instance_index = instance_manager.getIndexByName(instance->getName());
-		
-		for (Pin *pin : instance->getPins())
-		{
-			if (!pin)
-			{
-				continue;
-			}
-			Net *net = pin->getNet();
-			if (!net)
-			{
-				continue;
-			}
-			int current_net_weight = net->getWeight();
-			for (Pin *connected_pin: net->getConnectedPins())
-			{
-				// Check if the connected_pin is a block pin
-				if (connected_pin && connected_pin->isBlockPin())
-				{
-
-					std::pair<int, int> pin_coordinate = connected_pin->getCoordinate();
-					// Accumulate net weight * x/y coordinate for block pins
-					bx_vector[instance_index] += current_net_weight * pin_coordinate.first;
-					by_vector[instance_index] += current_net_weight * pin_coordinate.second;
-				}
-			}
-		}
-	}
 	//std::cout << "flag before matrix solve" << std::endl;
 	// Solve Ax = b for bx and by
 	std::valarray<double> x_vector(A_matrix.n);

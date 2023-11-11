@@ -159,10 +159,13 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
   const int SIZE_THRESHOLD = matrix_threshold; // Threshold for parallelization
   const int MAX_THREADS = matrix_max_num_threads; // Maximum number of threads
 
+  double prev_rnorm = std::numeric_limits<double>::max(); // Initialize to maximum value
+
   int i;
   // CG iteration
   std::cout << "CG iteration" << std::endl;
   for (i = 0; i < maxit; ++i) {
+
     matvec(p, Ap);
 
     double dot_p_Ap = dot(p, Ap);  // Parallelized dot product
@@ -183,9 +186,20 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
       }
     }
 
+
     // Check for convergence
     rnorm = sqrt(dot(r, r));  // Parallelized dot product
-    if (sqrt(rnorm) < 1e-8) { break; }
+    if (i % 100 == 0) {
+      if (i > 0 && std::abs(rnorm - prev_rnorm) / prev_rnorm < 0.01)
+      {
+        std::cout << "Converged at iteration (no major improvement after 100 additional iterations)" << i << std::endl;
+        break;
+      }
+      cout << "Iteration " << i << ", residual norm = " << rnorm << endl;
+    }
+    prev_rnorm = rnorm;
+
+    if ((rnorm) < 1e-8) { break; }
 
     // Apply preconditioner to the residual
     apply_preconditioner(r, z);  // Parallelized
