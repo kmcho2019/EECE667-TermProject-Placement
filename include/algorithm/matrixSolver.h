@@ -66,6 +66,7 @@ class coo_matrix {
   double dot(const valarray<double> &x, const valarray<double> &y);
   void matvec(const valarray<double> &x, valarray<double> &y);
   void solve(const valarray<double> &b, valarray<double> &x);
+  void compute_preconditioner();
   void apply_preconditioner(const valarray<double> &r, valarray<double> &z);
 };
 

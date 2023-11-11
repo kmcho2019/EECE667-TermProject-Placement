@@ -425,6 +425,8 @@ void Circuit::quadraticPlacement() {
 	// Change Parallelization parameters
 	A_matrix.matrix_threshold = INSTANCE_THRESHOLD;
 	A_matrix.matrix_max_num_threads = MAX_THREADS;
+	// Compute preconditioner
+	A_matrix.compute_preconditioner();
 
 	std::cout << "flag5" << std::endl;
 

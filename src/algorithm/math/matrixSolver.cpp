@@ -109,10 +109,10 @@ double coo_matrix::dot(const valarray<double> &x, const valarray<double> &y)
 
 void coo_matrix::matvec(const valarray<double> &x, valarray<double> &y) {
   y = 0.0; // need to reset to 0 first.
-  const int NNZ_THRESHOLD = matrix_threshold; // Threshold for parallelization
+  const int SIZE_THRESHOLD = matrix_threshold; // Threshold for parallelization
   const int MAX_THREADS = matrix_max_num_threads; // Maximum number of threads
 
-  if (nnz > NNZ_THRESHOLD) 
+  if (nnz > SIZE_THRESHOLD) 
   {
     omp_set_num_threads(MAX_THREADS); // Set max threads
     #pragma omp parallel for
@@ -139,15 +139,18 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
   double rnormold, alpha, rnorm;
 
   // Initial guess for x
+  std::cout << "Initial guess for x" << std::endl;
   for (size_t i = 0; i < x.size(); ++i) {
     x[i] = (double) random() / (double) RAND_MAX;
   }
 
   // Initial residual r = b - Ax
+  std::cout << "Initial residual r = b - Ax" << std::endl;
   matvec(x, Ax);
   r = b - Ax;
 
   // Apply preconditioner to initial residual
+  std::cout << "Apply preconditioner to initial residual" << std::endl;
   apply_preconditioner(r, z);  // Parallelized
 
   p = z;  // Initial direction
@@ -158,6 +161,7 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
 
   int i;
   // CG iteration
+  std::cout << "CG iteration" << std::endl;
   for (i = 0; i < maxit; ++i) {
     matvec(p, Ap);
 
@@ -208,12 +212,25 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
   }
 }
 
+// Compute Jacobi preconditioner
+void coo_matrix::compute_preconditioner()
+{
+  M_inv.resize(n);
+  for (int i = 0; i < nnz; ++i) 
+  {
+    if (row[i] == col[i])
+    {
+      M_inv[row[i]] = 1.0 / dat[i];
+    }
+  }
+}
+
 // Jacobi preconditioner
 void coo_matrix::apply_preconditioner(const valarray<double> &r, valarray<double> &z) 
 {
   const int SIZE_THRESHOLD = matrix_threshold; // Threshold for parallelization
   const int MAX_THREADS = matrix_max_num_threads; // Maximum number of threads
-
+  //std::cout << "Running preconditioner" << std::endl;
   if (n > SIZE_THRESHOLD) {
     omp_set_num_threads(MAX_THREADS); // Set max threads for large data size
     #pragma omp parallel for
