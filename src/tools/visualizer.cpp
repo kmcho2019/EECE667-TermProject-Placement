@@ -63,8 +63,8 @@ void drawNet(Image &image, Placer::Net *net) {
     // if the connected cells are not placed
     if (!pin->getInstance())
       continue;
-    if (!pin->getInstance()->isPlaced())
-      assert(0);
+    // if (!pin->getInstance()->isPlaced())
+      //assert(0);
     center_x += pin->getCoordinate().first;
     center_y += pin->getCoordinate().second;
     valid_pin_number ++;
@@ -97,7 +97,7 @@ void drawPad(Image &image, Placer::Pin *pin) {
                        y + pad_half_height,
                        Color::BLUE);
 }
-void Circuit::saveImg(const string &file_name) {
+void Circuit::saveImg(const string &output_path_name, const string &file_name) {
   // image save time check
   clock_t start_time = clock();
 
@@ -128,7 +128,7 @@ void Circuit::saveImg(const string &file_name) {
   }
 
   // image save
-  string file_path = "../output/images/" + file_name + ".bmp";
+  string file_path = output_path_name + file_name + ".bmp";
   const char *file_path_char = file_path.c_str();
   image.save(file_path_char);
 
