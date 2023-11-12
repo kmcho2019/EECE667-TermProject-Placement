@@ -137,12 +137,17 @@ void Circuit::quadraticPlacement(const string &output_path_name, const string &d
 	 * reference system across the data structure.
 	 */
 
+
+
+
+	int num_instances = instance_pointers_.size();
+
 	const int INSTANCE_THRESHOLD = 1000; // Threshold for parallelization
-	const int MAX_THREADS = 32; // Maximum number of threads
+	const int MAX_THREADS = (num_instances > 200000) ? 16 : 32; // Maximum number of threads, reduce number of threads when instance is high to limit memory use
+
 
 	omp_set_num_threads(MAX_THREADS); // Set max threads for large data size
 
-	int num_instances = instance_pointers_.size();
 
 	std::vector<std::list<std::pair<int, int>>> adjacency_list(instance_pointers_.size());
 	// Create data structure to store the weight of pad wire for each instance
