@@ -170,7 +170,7 @@ class Circuit {
   ~Circuit() = default;
   void parse(const string &lef_name, const string &def_name);
   void write(const string &out_file_name);
-  void quadraticPlacement();
+  void quadraticPlacement(const string &output_path_name, const string &defName);
   void myPlacement();
   void calcGradient(std::vector<float> &gradX, std::vector<float> &gradY);
 

@@ -96,7 +96,7 @@ class InstanceManager {
 		std::vector<std::string> index_to_instance_name_; ///< Maps indices to instance names.
 };
 
-void Circuit::quadraticPlacement() {
+void Circuit::quadraticPlacement(const string &output_path_name, const string &defName) {
 	// matrix solve example.
 	// You should refer below function when you get x respect to Ax = b
 	// Below function is implemented in src/algorithm/math/matrixSolver.cpp
@@ -572,8 +572,19 @@ for (Instance *instance : instance_pointers_) {
 
 
 */
+
+	// added as for large files memory error seems to happen when function exits
+	// add a backup policy to save error before potential errors occur
+  	string img_output_file_name = "qPlace_result_" + defName;
+  	saveImg(output_path_name, img_output_file_name);
+
+
 	saveImg("../output/qPlacer/", "FooImg");
 	write("../output/qPlacer/Foo.def");
+	
+	write(output_path_name + defName);
+
+
 
 	std::cout << "HPWL of placeExample: " << std::endl;
 	std::cout << this->getHPWL() << std::endl;

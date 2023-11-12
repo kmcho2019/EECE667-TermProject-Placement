@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
   string img_file_name = "result_" + defName;
   circuit.saveImg(output_path_name, img_file_name);
 
-  circuit.quadraticPlacement();
+  circuit.quadraticPlacement(output_path_name, defName);
   circuit.write(output_path_name + defName);
 
   string img_output_file_name = "qPlace_result_" + defName;
