@@ -190,14 +190,15 @@ void coo_matrix::solve(const valarray<double> &b, valarray<double> &x) {
     // Check for convergence
     rnorm = sqrt(dot(r, r));  // Parallelized dot product
     if (i % 100 == 0) {
-      if (i > 0 && std::abs(rnorm - prev_rnorm) / prev_rnorm < 0.01)
+        cout << "Iteration " << i << ", residual norm = " << rnorm << endl;
+      if (i > 100 && (std::abs(rnorm - prev_rnorm) / prev_rnorm) < 0.01)
       {
         std::cout << "Converged at iteration (no major improvement after 100 additional iterations)" << i << std::endl;
         break;
       }
-      cout << "Iteration " << i << ", residual norm = " << rnorm << endl;
+      prev_rnorm = rnorm;
     }
-    prev_rnorm = rnorm;
+    
 
     if ((rnorm) < 1e-8) { break; }
 
