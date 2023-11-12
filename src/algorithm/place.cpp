@@ -96,6 +96,147 @@ class InstanceManager {
 		std::vector<std::string> index_to_instance_name_; ///< Maps indices to instance names.
 };
 
+
+class GridManager {
+public:
+    static const int gridSize = 20;
+	int num_instances;
+	int die_width;	// max column
+	int die_height;	// max row
+	int region_area;
+	int region_row_width;
+	int region_col_height;
+	std::array<std::array<std::vector<int>, gridSize>, gridSize> grid;
+	std::array<std::array<int, gridSize>, gridSize> gridCellArea;
+	std::vector<int> cellAreaIndexStore; // stores cell area for each instance index 
+public:
+    GridManager(const std::vector<Instance*>& instance_pointers_, Die* die_)
+	{
+		num_instances = instance_pointers_.size();
+		die_width = die_->getWidth();	// max column
+		die_height = die_->getHeight();	// max row
+		region_area = die_width * die_height / (gridSize * gridSize);
+		region_row_width = die_width / gridSize;
+		region_col_height = die_height / gridSize;
+
+		cellAreaIndexStore.assign(num_instances, 0);
+		for (int i = 0; i < num_instances; i++)
+		{
+			std::pair<int,int> instance_coordinate = instance_pointers_[i]->getCoordinate();
+			int gridX = std::min(gridSize - 1, std::max(0, static_cast<int>(instance_coordinate.first / region_row_width)));
+			int gridY = std::min(gridSize - 1, std::max(0, static_cast<int>(instance_coordinate.second / region_col_height)));
+			grid[gridY][gridX].push_back(i);
+			cellAreaIndexStore[i] = instance_pointers_[i]->getArea();
+		}
+		calculateAreaInRegion(0, 0, gridSize - 1, gridSize - 1);
+
+    }
+
+    // Method to calculate the area of cells in a region
+    int calculateAreaInRegion(int row1, int col1, int row2, int col2) {
+        int areaSum = 0;
+        for (int i = row1; i <= row2; ++i) {
+            for (int j = col1; j <= col2; ++j) {
+				for (int k = 0; k < grid[i][j].size(); k++)
+				{
+					areaSum += cellAreaIndexStore[grid[i][j][k]];
+				}
+                
+            }
+        }
+        return areaSum;
+    }
+
+    // Method to move a cell and update area sums
+    void moveCell(int cellIndex, int fromRow, int fromCol, int toRow, int toCol) {
+        // Move cell from grid region to new grid region
+		auto it = std::find(grid[fromRow][fromCol].begin(), grid[fromRow][fromCol].end(), cellIndex);
+
+		if (it != grid[fromRow][fromCol].end())
+		{
+			grid[fromRow][fromCol].erase(it);
+			grid[toRow][toCol].push_back(cellIndex);
+			updateAreaSums(fromRow, fromCol, -cellAreaIndexStore[cellIndex]);
+			updateAreaSums(toRow, toCol, cellAreaIndexStore[cellIndex]);
+		}
+		else
+		{
+			std::cout << "Cell not found in grid region" << std::endl;
+		}
+
+    }
+
+    std::pair<int, int> getRegionCenter(int i, int j) {
+        double regionWidth = die_width / gridSize;
+        double regionHeight = die_height / gridSize;
+
+        double centerX = (i * regionWidth) + (regionWidth / 2);
+        double centerY = (j * regionHeight) + (regionHeight / 2);
+
+		// change to int
+		int intcenterX = std::min(die_width, std::max(0, static_cast<int>(centerX)));
+		int intcenterY = std::min(die_height, std::max(0, static_cast<int>(centerY)));
+        return {intcenterX, intcenterY};
+    }
+
+	// Calculate the maximum overshoot area for the grid
+	int calculateMaxOvershootArea() {
+		int maxOvershootArea = 0;
+		for (int i = 0; i < gridSize; ++i) {
+			for (int j = 0; j < gridSize; ++j) {
+				int overshootArea = calculateOvershootArea(i, j);
+				if (overshootArea > maxOvershootArea) {
+					maxOvershootArea = overshootArea;
+				}
+			}
+		}
+		return maxOvershootArea;
+	}
+
+	// Calculate median overshoot area for the grid
+	int calculateMedianOvershootArea() {
+		std::vector<int> overshootAreas;
+		for (int i = 0; i < gridSize; ++i) {
+			for (int j = 0; j < gridSize; ++j) {
+				overshootAreas.push_back(calculateOvershootArea(i, j));
+			}
+		}
+		std::sort(overshootAreas.begin(), overshootAreas.end());
+		return overshootAreas[overshootAreas.size() / 2];
+	}
+
+	// Calculate the overshoot area for a region
+	int calculateOvershootArea(int i, int j)
+	{
+		int regionArea = die_width * die_height / (gridSize * gridSize);
+		int regionWidth = die_width / gridSize;
+		int regionHeight = die_height / gridSize;
+		int regionAreaSum = calculateAreaInRegion(i, j, i, j);
+		int overshootArea = regionAreaSum - regionArea;
+		if (overshootArea < 0)
+		{
+			overshootArea = 0;
+		}
+		return overshootArea;
+	}
+
+	// Calculate the average overshoot area for all regions
+	double calculateAverageOvershootArea() {
+		double averageOvershootArea = 0.0;
+		for (int i = 0; i < gridSize; ++i) {
+			for (int j = 0; j < gridSize; ++j) {
+				averageOvershootArea += calculateOvershootArea(i, j);
+			}
+		}
+		return averageOvershootArea / (gridSize * gridSize);
+	}
+private:
+    // Helper method to update area sums
+    void updateAreaSums(int x, int y, int valueChange) {
+        gridCellArea[x][y] += valueChange;
+    }
+};
+
 void Circuit::quadraticPlacement(const string &output_path_name, const string &defName) {
 	// matrix solve example.
 	// You should refer below function when you get x respect to Ax = b
@@ -599,6 +740,135 @@ for (Instance *instance : instance_pointers_) {
 
  }
 void Circuit::myPlacement() {
+	// do random placement first
 	this->placeExample();  // You should erase this line.
+
+	std::cout << "After Initial Placement: " << std::endl;
+	std::cout << "HPWL of placeExample: " << std::endl;
+	std::cout << this->getHPWL() << std::endl;
+
+
+
+
+	const int gridSize = 20;
+	InstanceManager instance_manager(instance_pointers_);
+	int num_instances = instance_pointers_.size();
+	int die_width = die_->getWidth();	// max column
+	int die_height = die_->getHeight();	// max row
+	int region_area = die_width * die_height / (gridSize * gridSize);
+	int region_row_width = die_width / gridSize;
+	int region_col_height = die_height / gridSize;
+
+
+	GridManager grid(instance_pointers_, die_);
+
+
+	// print the average overshoot area, median overshoot area, and max overshoot area
+	std::cout << "Average overshoot area: " << std::endl;
+	std::cout << grid.calculateAverageOvershootArea() << std::endl;
+	std::cout << "Median overshoot area: " << std::endl;
+	std::cout << grid.calculateMedianOvershootArea() << std::endl;
+	std::cout << "Max overshoot area: " << std::endl;
+	std::cout << grid.calculateMaxOvershootArea() << std::endl;
+
+	// Snake traverse the grid and move cell to next region when density is exceeded
+    for (int i = 0; i < gridSize; ++i) 
+	{
+        // Determine direction: left to right for even rows, right to left for odd rows
+        bool leftToRight = (i % 2 == 0);
+
+        for (int j = 0; j < gridSize; ++j) 
+		{
+            int col = leftToRight ? j : gridSize - 1 - j;
+
+			int densityThreshold = region_area;
+            if (grid.calculateAreaInRegion(i, col, i, col) > densityThreshold) 
+			{
+				int overShootArea = grid.calculateAreaInRegion(i, col, i, col) - densityThreshold;
+				int shiftArea = 0;
+				std::vector<int> shiftCell;
+				for (int k = 0; k < grid.grid[i][col].size(); k++)
+				{
+					int cellIndex = grid.grid[i][col][k];
+					int cellArea = grid.cellAreaIndexStore[cellIndex];
+					if (shiftArea + cellArea < overShootArea)
+					{
+						shiftArea += cellArea;
+						shiftCell.push_back(cellIndex);
+					}
+					else
+					{
+						shiftArea += cellArea;
+						shiftCell.push_back(cellIndex);
+						break;
+					}	
+				}
+
+				// Move the cell to the next region
+                // Identify the next cell in the snaking path
+                int nextRow = i + (col == gridSize - 1 ? 1 : 0);
+                int nextCol = leftToRight ? (col + 1) % gridSize : (col - 1 + gridSize) % gridSize;
+                if (nextRow < gridSize) 
+				{
+					for (int k = 0; k < shiftCell.size(); k++)
+					{
+						int cellIndex = shiftCell[k];
+						grid.moveCell(cellIndex, i, col, nextRow, nextCol);
+						std::pair<int, int> newCellCoordinate = grid.getRegionCenter(nextRow, nextCol);
+						// to the new coordinate add a random value between -1 % of Width/Height and 1 % of Width/Height
+						int randomX = rand() % (die_width / 100);
+						int randomY = rand() % (die_height / 100);
+						// check if the new coordinate is within the die
+						int newX = std::min(die_width, std::max(0, static_cast<int>(newCellCoordinate.first + randomX)));
+						int newY = std::min(die_height, std::max(0, static_cast<int>(newCellCoordinate.second + randomY)));
+						instance_pointers_[cellIndex]->setCoordinate(newX, newY);
+					}
+                }
+                // else: handle the case when the cell is at the end of the grid, give to left or right neigbor
+				else
+				{
+					for (int k = 0; k < shiftCell.size(); k++)
+					{
+						if (k % 3 == 0)
+						{
+							int cellIndex = shiftCell[k];
+							grid.moveCell(cellIndex, i, col, 19, 18);
+						}
+						else if (k % 3 == 1)
+						{
+							int cellIndex = shiftCell[k];
+							grid.moveCell(cellIndex, i, col, 18, 19);
+						}
+						else
+						{
+							int cellIndex = shiftCell[k];
+							grid.moveCell(cellIndex, i, col, 18, 18);
+						}
+
+					}
+				}
+            }
+        }
+    }
+
+	std::cout << "After Grid Based spread out: " << std::endl;
+	std::cout << "HPWL: " << std::endl;
+	std::cout << this->getHPWL() << std::endl;
+	// print overshoot areas
+	std::cout << "Average overshoot area: " << std::endl;
+	std::cout << grid.calculateAverageOvershootArea() << std::endl;
+	std::cout << "Median overshoot area: " << std::endl;
+	std::cout << grid.calculateMedianOvershootArea() << std::endl;
+	std::cout << "Max overshoot area: " << std::endl;
+	std::cout << grid.calculateMaxOvershootArea() << std::endl;
+
+
+	
+
+
+
+
+
+
 }
 }
