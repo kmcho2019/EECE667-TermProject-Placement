@@ -161,7 +161,7 @@ public:
 		}
 		else
 		{
-			std::cout << "Cell not found in grid region" << std::endl;
+			//std::cout << "Cell not found in grid region" << std::endl;
 		}
 
     }
@@ -220,6 +220,21 @@ public:
 		return overshootArea;
 	}
 
+	// Calculate the overshoot density for a region
+	double calculateOvershootDensity(int i, int j)
+	{
+		int regionArea = die_width * die_height / (gridSize * gridSize);
+
+		int regionAreaSum = calculateAreaInRegion(i, j, i, j);
+		// cast to double to avoid integer division
+		double overshootDensity = static_cast<double>(regionAreaSum ) / regionArea;
+		if (overshootDensity < 0)
+		{
+			overshootDensity = 1.0;
+		}
+		return overshootDensity;
+	}
+
 	// Calculate the average overshoot area for all regions
 	double calculateAverageOvershootArea() {
 		double averageOvershootArea = 0.0;
@@ -230,6 +245,50 @@ public:
 		}
 		return averageOvershootArea / (gridSize * gridSize);
 	}
+	// Proportion of regions with overshoot area > 0
+	double calculateProportionOvershootArea() {
+		double proportionOvershootArea = 0.0;
+		for (int i = 0; i < gridSize; ++i) {
+			for (int j = 0; j < gridSize; ++j) {
+				if (calculateOvershootArea(i, j) > 0) {
+					proportionOvershootArea += 1.0;
+				}
+			}
+		}
+		return proportionOvershootArea / (gridSize * gridSize);
+	}
+	// Average overshoot density
+	double calculateAverageOvershootDensity() {
+		double averageOvershootDensity = 0.0;
+		for (int i = 0; i < gridSize; ++i) {
+			for (int j = 0; j < gridSize; ++j) {
+				averageOvershootDensity += calculateOvershootDensity(i, j);
+			}
+		}
+		return averageOvershootDensity / (gridSize * gridSize);
+	}
+	// Find the region given instance index
+	std::pair<int, int> findRegion(int instanceIndex) {
+		for (int i = 0; i < gridSize; ++i) {
+			for (int j = 0; j < gridSize; ++j) {
+				auto it = std::find(grid[i][j].begin(), grid[i][j].end(), instanceIndex);
+				if (it != grid[i][j].end())
+				{
+					return { i, j };
+				}
+			}
+		}
+		return { -1, -1 };
+	}
+	// Find region given location
+	std::pair<int, int> findRegion(std::pair<int, int> location) {
+		int regionWidth = die_width / gridSize;
+		int regionHeight = die_height / gridSize;
+		int gridX = std::min(gridSize - 1, std::max(0, static_cast<int>(location.first / regionWidth)));
+		int gridY = std::min(gridSize - 1, std::max(0, static_cast<int>(location.second / regionHeight)));
+		return { gridX, gridY };
+	}
+
 private:
     // Helper method to update area sums
     void updateAreaSums(int x, int y, int valueChange) {
@@ -770,6 +829,18 @@ void Circuit::myPlacement() {
 	std::cout << grid.calculateMedianOvershootArea() << std::endl;
 	std::cout << "Max overshoot area: " << std::endl;
 	std::cout << grid.calculateMaxOvershootArea() << std::endl;
+	std::cout << "Proportion of regions with overshoot area > 0: " << std::endl;
+	std::cout << grid.calculateProportionOvershootArea() << std::endl;
+	std::cout << "Average overshoot density: " << std::endl;
+	std::cout << grid.calculateAverageOvershootDensity() << std::endl;
+
+	ulong initial_HPWL = this->getHPWL();
+	double initial_Average_Overshoot = grid.calculateAverageOvershootArea();
+	double initial_Median_Overshoot = grid.calculateMedianOvershootArea();
+	double initial_Max_Overshoot = grid.calculateMaxOvershootArea();
+	double initial_Proportion_Overshoot = grid.calculateProportionOvershootArea();
+	double initial_Average_Overshoot_Density = grid.calculateAverageOvershootDensity();
+
 
 	// Snake traverse the grid and move cell to next region when density is exceeded
     for (int i = 0; i < gridSize; ++i) 
@@ -832,17 +903,44 @@ void Circuit::myPlacement() {
 						if (k % 3 == 0)
 						{
 							int cellIndex = shiftCell[k];
-							grid.moveCell(cellIndex, i, col, 19, 18);
+							grid.moveCell(cellIndex, i, col, gridSize-1, gridSize-2);
+							std::pair<int, int> newCellCoordinate = grid.getRegionCenter(nextRow, nextCol);
+							// to the new coordinate add a random value between -1 % of Width/Height and 1 % of Width/Height
+							int randomX = rand() % (die_width / 100);
+							int randomY = rand() % (die_height / 100);
+							// check if the new coordinate is within the die
+							int newX = std::min(die_width, std::max(0, static_cast<int>(newCellCoordinate.first + randomX)));
+							int newY = std::min(die_height, std::max(0, static_cast<int>(newCellCoordinate.second + randomY)));
+							instance_pointers_[cellIndex]->setCoordinate(newX, newY);
+
 						}
 						else if (k % 3 == 1)
 						{
 							int cellIndex = shiftCell[k];
-							grid.moveCell(cellIndex, i, col, 18, 19);
+							grid.moveCell(cellIndex, i, col, gridSize-2, gridSize-1);
+							std::pair<int, int> newCellCoordinate = grid.getRegionCenter(nextRow, nextCol);
+							// to the new coordinate add a random value between -1 % of Width/Height and 1 % of Width/Height
+							int randomX = rand() % (die_width / 100);
+							int randomY = rand() % (die_height / 100);
+							// check if the new coordinate is within the die
+							int newX = std::min(die_width, std::max(0, static_cast<int>(newCellCoordinate.first + randomX)));
+							int newY = std::min(die_height, std::max(0, static_cast<int>(newCellCoordinate.second + randomY)));
+							instance_pointers_[cellIndex]->setCoordinate(newX, newY);
+
 						}
 						else
 						{
 							int cellIndex = shiftCell[k];
-							grid.moveCell(cellIndex, i, col, 18, 18);
+							grid.moveCell(cellIndex, i, col, gridSize-2, gridSize-2);
+							std::pair<int, int> newCellCoordinate = grid.getRegionCenter(nextRow, nextCol);
+							// to the new coordinate add a random value between -1 % of Width/Height and 1 % of Width/Height
+							int randomX = rand() % (die_width / 100);
+							int randomY = rand() % (die_height / 100);
+							// check if the new coordinate is within the die
+							int newX = std::min(die_width, std::max(0, static_cast<int>(newCellCoordinate.first + randomX)));
+							int newY = std::min(die_height, std::max(0, static_cast<int>(newCellCoordinate.second + randomY)));
+							instance_pointers_[cellIndex]->setCoordinate(newX, newY);
+
 						}
 
 					}
@@ -851,7 +949,7 @@ void Circuit::myPlacement() {
         }
     }
 
-	std::cout << "After Grid Based spread out: " << std::endl;
+	std::cout << "After Top-Down Snake Traversal Grid Based spread out: " << std::endl;
 	std::cout << "HPWL: " << std::endl;
 	std::cout << this->getHPWL() << std::endl;
 	// print overshoot areas
@@ -861,6 +959,276 @@ void Circuit::myPlacement() {
 	std::cout << grid.calculateMedianOvershootArea() << std::endl;
 	std::cout << "Max overshoot area: " << std::endl;
 	std::cout << grid.calculateMaxOvershootArea() << std::endl;
+	std::cout << "Proportion of regions with overshoot area > 0: " << std::endl;
+	std::cout << grid.calculateProportionOvershootArea() << std::endl;
+	std::cout << "Average overshoot density: " << std::endl;
+	std::cout << grid.calculateAverageOvershootDensity() << std::endl;
+
+	ulong top_down_HPWL = this->getHPWL();
+	double top_down_Average_Overshoot = grid.calculateAverageOvershootArea();
+	double top_down_Median_Overshoot = grid.calculateMedianOvershootArea();
+	double top_down_Max_Overshoot = grid.calculateMaxOvershootArea();
+	double top_down_Proportion_Overshoot = grid.calculateProportionOvershootArea();
+	double top_down_Average_Overshoot_Density = grid.calculateAverageOvershootDensity();
+
+	
+
+	// Do Bottom-Up Snake Traversal Grid Based spread out
+	// Reverse snaking traverse the grid (bottom-up)
+	for (int i = gridSize - 1; i >= 0; --i) 
+	{
+		bool leftToRight = ((gridSize - 1 - i) % 2 == 0);
+		
+		for (int j = 0; j < gridSize; ++j) 
+		{
+			int col = leftToRight ? j : gridSize - 1 - j;
+
+			int densityThreshold = region_area;
+			if (grid.calculateAreaInRegion(i, col, i, col) > densityThreshold)
+			{
+				int overShootArea = grid.calculateAreaInRegion(i, col, i, col) - densityThreshold;
+				int shiftArea = 0;
+				std::vector<int> shiftCell;
+				for (int k = 0; k < grid.grid[i][col].size(); k++)
+				{
+					int cellIndex = grid.grid[i][col][k];
+					int cellArea = grid.cellAreaIndexStore[cellIndex];
+					if (shiftArea + cellArea < overShootArea)
+					{
+						shiftArea += cellArea;
+						shiftCell.push_back(cellIndex);
+					}
+					else
+					{
+						shiftArea += cellArea;
+						shiftCell.push_back(cellIndex);
+						break;
+					}
+				}
+
+				// Move the cell to the next region
+				// Identify the next cell in the snaking path
+				int nextRow = i - (leftToRight ? (col == gridSize - 1 ? 1 : 0) : (col == 0 ? 1 : 0));
+				int nextCol = leftToRight ? (col + 1) % gridSize : (col - 1 + gridSize) % gridSize;
+				if (nextRow >= 0)
+				{
+					for (int k = 0; k < shiftCell.size(); k++)
+					{
+						int cellIndex = shiftCell[k];
+						grid.moveCell(cellIndex, i, col, nextRow, nextCol);
+						std::pair<int, int> newCellCoordinate = grid.getRegionCenter(nextRow, nextCol);
+						// to the new coordinate add a random value between -1 % of Width/Height and 1 % of Width/Height
+						int randomX = rand() % (die_width / 100);
+						int randomY = rand() % (die_height / 100);
+						// check if the new coordinate is within the die
+						int newX = std::min(die_width, std::max(0, static_cast<int>(newCellCoordinate.first + randomX)));
+						int newY = std::min(die_height, std::max(0, static_cast<int>(newCellCoordinate.second + randomY)));
+						instance_pointers_[cellIndex]->setCoordinate(newX, newY);
+					}
+				}
+				else
+				{
+					for (int k = 0; k < shiftCell.size(); k++)
+					{
+						if (k % 3 == 0)
+						{
+							int cellIndex = shiftCell[k];
+							grid.moveCell(cellIndex, i, col, 0, 1);
+							std::pair<int, int> newCellCoordinate = grid.getRegionCenter(nextRow, nextCol);
+							// to the new coordinate add a random value between -1 % of Width/Height and 1 % of Width/Height
+							int randomX = rand() % (die_width / 100);
+							int randomY = rand() % (die_height / 100);
+							// check if the new coordinate is within the die
+							int newX = std::min(die_width, std::max(0, static_cast<int>(newCellCoordinate.first + randomX)));
+							int newY = std::min(die_height, std::max(0, static_cast<int>(newCellCoordinate.second + randomY)));
+							instance_pointers_[cellIndex]->setCoordinate(newX, newY);
+
+						}
+						else if (k % 3 == 1)
+						{
+							int cellIndex = shiftCell[k];
+							grid.moveCell(cellIndex, i, col, 1, 0);
+							std::pair<int, int> newCellCoordinate = grid.getRegionCenter(nextRow, nextCol);
+							// to the new coordinate add a random value between -1 % of Width/Height and 1 % of Width/Height
+							int randomX = rand() % (die_width / 100);
+							int randomY = rand() % (die_height / 100);
+							// check if the new coordinate is within the die
+							int newX = std::min(die_width, std::max(0, static_cast<int>(newCellCoordinate.first + randomX)));
+							int newY = std::min(die_height, std::max(0, static_cast<int>(newCellCoordinate.second + randomY)));
+							instance_pointers_[cellIndex]->setCoordinate(newX, newY);
+
+						}
+						else
+						{
+							int cellIndex = shiftCell[k];
+							grid.moveCell(cellIndex, i, col, 1, 1);
+							std::pair<int, int> newCellCoordinate = grid.getRegionCenter(nextRow, nextCol);
+							// to the new coordinate add a random value between -1 % of Width/Height and 1 % of Width/Height
+							int randomX = rand() % (die_width / 100);
+							int randomY = rand() % (die_height / 100);
+							// check if the new coordinate is within the die
+							int newX = std::min(die_width, std::max(0, static_cast<int>(newCellCoordinate.first + randomX)));
+							int newY = std::min(die_height, std::max(0, static_cast<int>(newCellCoordinate.second + randomY)));
+							instance_pointers_[cellIndex]->setCoordinate(newX, newY);
+
+						}
+
+
+					}
+					
+				}
+			}
+
+		}
+	}
+
+	std::cout << "After Bottom-Up Snake Traversal Grid Based spread out: " << std::endl;
+	std::cout << "HPWL: " << std::endl;
+	std::cout << this->getHPWL() << std::endl;
+	// print overshoot areas
+	std::cout << "Average overshoot area: " << std::endl;
+	std::cout << grid.calculateAverageOvershootArea() << std::endl;
+	std::cout << "Median overshoot area: " << std::endl;
+	std::cout << grid.calculateMedianOvershootArea() << std::endl;
+	std::cout << "Max overshoot area: " << std::endl;
+	std::cout << grid.calculateMaxOvershootArea() << std::endl;
+	std::cout << "Proportion of regions with overshoot area > 0: " << std::endl;
+	std::cout << grid.calculateProportionOvershootArea() << std::endl;
+	std::cout << "Average overshoot density: " << std::endl;
+
+	ulong bottom_up_HPWL = this->getHPWL();
+	double bottom_up_Average_Overshoot = grid.calculateAverageOvershootArea();
+	double bottom_up_Median_Overshoot = grid.calculateMedianOvershootArea();
+	double bottom_up_Max_Overshoot = grid.calculateMaxOvershootArea();
+	double bottom_up_Proportion_Overshoot = grid.calculateProportionOvershootArea();
+	double bottom_up_Average_Overshoot_Density = grid.calculateAverageOvershootDensity();
+
+
+
+
+	
+
+
+
+	// Implement Simulated Annealing
+	// Initialize temperature
+	double temperature = 1000;
+	// Initialize cooling rate
+	double coolingRate = 0.03;
+	// Initialize current solution
+	double currentSolution = this->getHPWL();
+
+	double current_Cost = 0.8 * bottom_up_Average_Overshoot_Density + 0.2 * (static_cast<double>(bottom_up_HPWL) / initial_HPWL);
+
+	while (temperature > 1)
+	{
+		// Randomly select a cell
+		int randomCellIndex = rand() % num_instances;
+		int current_i = grid.findRegion(randomCellIndex).first;
+		int current_j = grid.findRegion(randomCellIndex).second;
+		std::pair<int, int> randomCellCoordinate = instance_pointers_[randomCellIndex]->getCoordinate();
+
+		// Random move increment
+		int random_x_increment = rand() % (die_width / 200);
+		int random_y_increment = rand() % (die_height / 200);
+
+		int new_x = std::min(die_width, std::max(0, static_cast<int>(randomCellCoordinate.first + random_x_increment)));
+		int new_y = std::min(die_height, std::max(0, static_cast<int>(randomCellCoordinate.second + random_y_increment)));
+		// make sure the new coordinate is within the die
+		std::pair<int, int> newCellCoordinate(new_x, new_y);
+
+		int new_i = grid.findRegion(newCellCoordinate).first;
+		int new_j = grid.findRegion(newCellCoordinate).second;
+		int action = rand() % 5;
+		if (action == 0)
+		{
+			int anotherCellIndex = rand() % num_instances;
+			if (randomCellIndex == anotherCellIndex)
+			{
+				continue;
+			}
+		}
+		else
+		{
+
+
+			grid.moveCell(randomCellIndex, current_i, current_j, new_i, new_j);
+
+			instance_pointers_[randomCellIndex]->setCoordinate(new_x, new_y);
+
+
+
+		}
+		double new_Cost = 0.8 * grid.calculateAverageOvershootDensity() + 0.2 * (static_cast<double>(this->getHPWL()) / initial_HPWL);
+
+		double acceptanceProbability = exp((current_Cost - new_Cost) / temperature);
+		if (new_Cost < current_Cost)
+		{
+			current_Cost = new_Cost;
+		}
+		else if (acceptanceProbability > static_cast<double>(rand()) / static_cast<double>(RAND_MAX))
+		{
+			current_Cost = new_Cost;
+		}
+		else // revert changes
+		{
+			grid.moveCell(randomCellIndex, new_i, new_j, current_i, current_j);
+
+			instance_pointers_[randomCellIndex]->setCoordinate(randomCellCoordinate.first, randomCellCoordinate.second);
+		}
+		temperature = temperature * (1 - coolingRate);
+	}
+
+	std::cout << "After Simulated Annealing: " << std::endl;
+	std::cout << "HPWL: " << std::endl;
+	std::cout << this->getHPWL() << std::endl;
+	// print overshoot areas
+	std::cout << "Average overshoot area: " << std::endl;
+	std::cout << grid.calculateAverageOvershootArea() << std::endl;
+	std::cout << "Median overshoot area: " << std::endl;
+	std::cout << grid.calculateMedianOvershootArea() << std::endl;
+	std::cout << "Max overshoot area: " << std::endl;
+	std::cout << grid.calculateMaxOvershootArea() << std::endl;
+	std::cout << "Proportion of regions with overshoot area > 0: " << std::endl;
+	std::cout << grid.calculateProportionOvershootArea() << std::endl;
+	std::cout << "Average overshoot density: " << std::endl;
+	std::cout << grid.calculateAverageOvershootDensity() << std::endl;
+
+
+	ulong simulated_annealing_HPWL = this->getHPWL();
+	double simulated_annealing_Average_Overshoot = grid.calculateAverageOvershootArea();
+	double simulated_annealing_Median_Overshoot = grid.calculateMedianOvershootArea();
+	double simulated_annealing_Max_Overshoot = grid.calculateMaxOvershootArea();
+	double simulated_annealing_Proportion_Overshoot = grid.calculateProportionOvershootArea();
+	double simulated_annealing_Average_Overshoot_Density = grid.calculateAverageOvershootDensity();
+
+
+	// compare the HPWL and overshoot area before and after the grid based spread out
+	std::cout << "Initial HPWL: " << initial_HPWL << std::endl;
+	std::cout << "Top-Down HPWL: " << top_down_HPWL << std::endl;
+	std::cout << "Bottom-Up HPWL: " << bottom_up_HPWL << std::endl;
+	std::cout << "Simulated Annealing HPWL: " << simulated_annealing_HPWL << std::endl;
+	std::cout << "Initial Average Overshoot Area: " << initial_Average_Overshoot << std::endl;
+	std::cout << "Top-Down Average Overshoot Area: " << top_down_Average_Overshoot << std::endl;
+	std::cout << "Bottom-Up Average Overshoot Area: " << bottom_up_Average_Overshoot << std::endl;
+	std::cout << "Simulated Annealing Average Overshoot Area: " << simulated_annealing_Average_Overshoot << std::endl;
+	std::cout << "Initial Median Overshoot Area: " << initial_Median_Overshoot << std::endl;
+	std::cout << "Top-Down Median Overshoot Area: " << top_down_Median_Overshoot << std::endl;
+	std::cout << "Bottom-Up Median Overshoot Area: " << bottom_up_Median_Overshoot << std::endl;
+	std::cout << "Simulated Annealing Median Overshoot Area: " << simulated_annealing_Median_Overshoot << std::endl;
+	std::cout << "Initial Max Overshoot Area: " << initial_Max_Overshoot << std::endl;
+	std::cout << "Top-Down Max Overshoot Area: " << top_down_Max_Overshoot << std::endl;
+	std::cout << "Bottom-Up Max Overshoot Area: " << bottom_up_Max_Overshoot << std::endl;
+	std::cout << "Simulated Annealing Max Overshoot Area: " << simulated_annealing_Max_Overshoot << std::endl;
+	std::cout << "Initial Proportion Overshoot Area: " << initial_Proportion_Overshoot << std::endl;
+	std::cout << "Top-Down Proportion Overshoot Area: " << top_down_Proportion_Overshoot << std::endl;
+	std::cout << "Bottom-Up Proportion Overshoot Area: " << bottom_up_Proportion_Overshoot << std::endl;
+	std::cout << "Simulated Annealing Proportion Overshoot Area: " << simulated_annealing_Proportion_Overshoot << std::endl;
+	std::cout << "Initial Average Overshoot Density: " << initial_Average_Overshoot_Density << std::endl;
+	std::cout << "Top-Down Average Overshoot Density: " << top_down_Average_Overshoot_Density << std::endl;
+	std::cout << "Bottom-Up Average Overshoot Density: " << bottom_up_Average_Overshoot_Density << std::endl;
+	std::cout << "Simulated Annealing Average Overshoot Density: " << simulated_annealing_Average_Overshoot_Density << std::endl;
+
 
 
 	
